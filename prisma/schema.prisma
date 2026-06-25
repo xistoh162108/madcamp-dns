@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Student {
+  id          String  @id @default(cuid())
+  email       String  @unique
+  name        String?
+  subdomain   String  @unique
+
+  recordLimit Int     @default(10)
+  isActive    Boolean @default(true)
+
+  apiKeys          ApiKey[]
+  records          DnsRecord[]
+  auditLogs        AuditLog[]
+  ownedSubdomains  OwnedSubdomain[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model OwnedSubdomain {
+  id        String   @id @default(cuid())
+  studentId String
+  subdomain String   @unique
+  createdAt DateTime @default(now())
+
+  student   Student  @relation(fields: [studentId], references: [id])
+
+  @@index([studentId])
+}
+
+model ApiKey {
+  id        String  @id @default(cuid())
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  keyHash   String   @unique
+  keyPrefix String
+
+  label     String?
+  isActive  Boolean  @default(true)
+  lastUsedAt DateTime?
+
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+
+  @@index([studentId])
+}
+
+model DnsRecord {
+  id                 String  @id @default(cuid())
+
+  studentId          String
+  student            Student @relation(fields: [studentId], references: [id])
+
+  cloudflareRecordId String  @unique
+
+  relativeName       String
+  fqdn               String
+  type               String
+  content            String
+  ttl                Int     @default(1)
+  proxied            Boolean @default(false)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([studentId, fqdn, type])
+  @@index([studentId])
+  @@index([studentId, createdAt(sort: Desc)])
+}
+
+model RateLimitLog {
+  id        String   @id @default(cuid())
+  keyHash   String
+  bucket    String
+  count     Int      @default(1)
+  expiresAt DateTime
+
+  @@unique([keyHash, bucket])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id        String @id @default(cuid())
+
+  actorType String
+  actorId   String?
+  studentId String?
+  student   Student? @relation(fields: [studentId], references: [id])
+
+  action    String
+
+  recordId  String?
+  beforeJson Json?
+  afterJson  Json?
+
+  ip        String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([studentId])
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt(sort: Desc)])
+}
