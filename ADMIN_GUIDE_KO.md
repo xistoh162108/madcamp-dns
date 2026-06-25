@@ -70,10 +70,10 @@ cp .env.example .env
 POSTGRES_PASSWORD=여기에_강한_비밀번호
 
 # 루트 도메인 (Cloudflare에서 관리 중인 도메인)
-ROOT_DOMAIN=madcamp.example.com
+ROOT_DOMAIN=madcamp-kaist.org
 
 # API 서버 공개 URL (로그/에러 안내용)
-PUBLIC_BASE_URL=https://api.madcamp.example.com
+PUBLIC_BASE_URL=https://dns.madcamp-kaist.org
 
 # Cloudflare Zone ID — CF 대시보드 → 도메인 선택 → Overview 오른쪽에 표시
 CLOUDFLARE_ZONE_ID=abcdef1234567890abcdef1234567890
@@ -125,12 +125,21 @@ curl -s -X POST \
 
 ## 3. 관리자 인증
 
+### 서비스 정보
+
+| 항목 | 값 |
+|---|---|
+| **API 주소** | `https://dns.madcamp-kaist.org` |
+| **서버 IP** | `167.172.66.80` |
+| **서버 경로** | `/opt/madcamp-dns` |
+| **루트 도메인** | `madcamp-kaist.org` |
+
 모든 `/admin/*` 엔드포인트는 관리자 API 키가 필요합니다.
 
 ```bash
 # 관리자 API 키를 환경변수로 설정해두면 편합니다
-export ADMIN_KEY="admin_dns_여기에_ADMIN_API_KEY값"
-export BASE_URL="https://api.madcamp.example.com"
+export ADMIN_KEY="서버 /opt/madcamp-dns/.env의 ADMIN_API_KEY 값"
+export BASE_URL="https://dns.madcamp-kaist.org"
 ```
 
 이후 모든 관리자 요청에:
@@ -138,6 +147,25 @@ export BASE_URL="https://api.madcamp.example.com"
 ```
 Authorization: Bearer $ADMIN_KEY
 ```
+
+### 전체 관리자 엔드포인트 (전체 URL)
+
+| Method | 전체 URL | 설명 |
+|---|---|---|
+| POST | `https://dns.madcamp-kaist.org/admin/students` | 학생 생성 |
+| POST | `https://dns.madcamp-kaist.org/admin/students/bulk` | 학생 대량 생성 |
+| GET | `https://dns.madcamp-kaist.org/admin/students` | 학생 목록 |
+| GET | `https://dns.madcamp-kaist.org/admin/students/:id` | 학생 단건 |
+| PATCH | `https://dns.madcamp-kaist.org/admin/students/:id` | 학생 수정 |
+| GET | `https://dns.madcamp-kaist.org/admin/students/:id/api-keys` | API 키 목록 |
+| POST | `https://dns.madcamp-kaist.org/admin/students/:id/api-keys` | API 키 발급 |
+| POST | `https://dns.madcamp-kaist.org/admin/students/:id/rotate-key` | 키 교체 |
+| DELETE | `https://dns.madcamp-kaist.org/admin/students/:id/api-keys/:keyId` | 키 폐기 |
+| GET | `https://dns.madcamp-kaist.org/admin/records` | 레코드 조회 |
+| DELETE | `https://dns.madcamp-kaist.org/admin/records/:id` | 레코드 강제 삭제 |
+| GET | `https://dns.madcamp-kaist.org/admin/audit-logs` | 감사 로그 |
+| POST | `https://dns.madcamp-kaist.org/admin/test-keys` | 테스트 계정 생성 |
+| GET | `https://dns.madcamp-kaist.org/health` | 헬스 체크 (인증 불필요) |
 
 ---
 

@@ -106,7 +106,7 @@ throws("name: null byte",                    () => validateRelativeName("ab\x00c
 throws("name: CR control char",              () => validateRelativeName("ab\rcd"), "control");
 throws("name: wildcard *",                   () => validateRelativeName("*"), "Wildcard");
 throws("name: wildcard prefix",              () => validateRelativeName("*.api"), "Wildcard");
-throws("name: @ symbol",                     () => validateRelativeName("@"), "\"@\"");
+doesNotThrow("name: @ (apex allowed)", () => validateRelativeName("@"));
 throws("name: underscore prefix",            () => validateRelativeName("_acme-challenge"), "underscore");
 throws("name: underscore general",           () => validateRelativeName("_service"), "underscore");
 throws("name: blocked admin",                () => validateRelativeName("admin"), "not allowed");
@@ -694,4 +694,65 @@ if (gfails.length > 0) {
 const gtotal = gpass + gfail;
 console.log(`${gfail === 0 ? "✓ G PASS" : "✗ G FAIL"} — ${gpass}/${gtotal}`);
 if (gfail > 0) process.exit(1);
+})();
+
+// ── SECTION H: "@" apex record support ───────────────────────────────────────
+;(async () => {
+const {
+  validateRelativeName,
+  buildFqdn,
+  extractSubdomainFromFqdn,
+} = await import("./dist/lib/validate-dns.js");
+
+let hp = 0, hf = 0;
+const hfails = [];
+function hok(label, cond)    { cond ? hp++ : (hf++, hfails.push(label)); }
+function hthrows(label, fn)  { try { fn(); hf++; hfails.push(label + " (no throw)"); } catch { hp++; } }
+function hnothrow(label, fn) { try { fn(); hp++; } catch(e) { hf++; hfails.push(`${label} (threw: ${e.message})`); } }
+
+console.log("── H: @ apex record support ─────────────────────────────────────");
+
+// H1. "@" passes validateRelativeName
+hnothrow('H1: "@" passes validateRelativeName', () => validateRelativeName("@"));
+
+// H2. buildFqdn with "@" returns subdomain.root (no prefix)
+hok('H2: buildFqdn "@" apex', buildFqdn("@", "alice", "example.com") === "alice.example.com");
+hok('H2: buildFqdn "@" apex madcamp', buildFqdn("@", "yskstuff", "madcamp-kaist.org") === "yskstuff.madcamp-kaist.org");
+
+// H3. buildFqdn non-"@" still works normally
+hok('H3: buildFqdn normal unchanged', buildFqdn("api", "alice", "example.com") === "api.alice.example.com");
+hok('H3: buildFqdn nested unchanged', buildFqdn("v1.api", "alice", "example.com") === "v1.api.alice.example.com");
+
+// H4. extractSubdomainFromFqdn with "@" extracts correctly
+hok('H4: extract "@" apex', extractSubdomainFromFqdn("alice.example.com", "@", "example.com") === "alice");
+hok('H4: extract "@" apex madcamp', extractSubdomainFromFqdn("yskstuff.madcamp-kaist.org", "@", "madcamp-kaist.org") === "yskstuff");
+
+// H5. extractSubdomainFromFqdn non-"@" still works normally
+hok('H5: extract normal unchanged', extractSubdomainFromFqdn("api.alice.example.com", "api", "example.com") === "alice");
+
+// H6. buildFqdn + extractSubdomainFromFqdn roundtrip for "@"
+const subs  = ["alice", "my-team", "yskstuff"];
+const roots = ["example.com", "madcamp-kaist.org"];
+for (const s of subs) for (const r of roots) {
+  const fqdn = buildFqdn("@", s, r);
+  hok(`H6: roundtrip "@" sub=${s} root=${r}`, extractSubdomainFromFqdn(fqdn, "@", r) === s);
+}
+
+// H7. "@" is no longer in BLOCKED_NAMES — other blocked names still rejected
+hthrows('H7: "*" still blocked',              () => validateRelativeName("*"));
+hthrows('H7: "_acme-challenge" still blocked',() => validateRelativeName("_acme-challenge"));
+hthrows('H7: empty string still rejected',    () => validateRelativeName(""));
+
+// H8. Case normalisation: "name.trim()" is "@" → allowed (PATCH sends raw user input)
+hnothrow('H8: " @ " (trimmed) allowed', () => validateRelativeName(" @ "));
+
+console.log("");
+if (hfails.length > 0) {
+  console.log("SECTION H FAILURES:");
+  for (const f of hfails) console.log("  ✗", f);
+  console.log("");
+}
+const ht = hp + hf;
+console.log(`${hf === 0 ? "✓ H PASS" : "✗ H FAIL"} — ${hp}/${ht}`);
+if (hf > 0) process.exit(1);
 })();

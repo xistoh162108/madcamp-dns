@@ -36,26 +36,39 @@
 관리자가 여러분에게 **기본 서브도메인** 하나를 처음에 할당합니다. 예를 들어:
 
 ```
-alice.madcamp.example.com        ← 기본 서브도메인 (관리자 할당)
-myproject.madcamp.example.com    ← 추가 서브도메인 (직접 신청 가능)
+alice.madcamp-kaist.org        ← 기본 서브도메인 (관리자 할당)
+myproject.madcamp-kaist.org    ← 추가 서브도메인 (직접 신청 가능)
 ```
 
 DNS 레코드를 만들 때 입력하는 **이름(name)** 은 서브도메인 기준 **상대 경로**입니다.
 
 | 서브도메인 | 입력한 name | 실제 DNS 이름 (FQDN) |
 |---|---|---|
-| alice (기본) | `www` | `www.alice.madcamp.example.com` |
-| alice (기본) | `api` | `api.alice.madcamp.example.com` |
-| myproject (추가) | `www` | `www.myproject.madcamp.example.com` |
+| alice (기본) | `www` | `www.alice.madcamp-kaist.org` |
+| alice (기본) | `api` | `api.alice.madcamp-kaist.org` |
+| myproject (추가) | `www` | `www.myproject.madcamp-kaist.org` |
 
 > **이름 최대 깊이**: `a.b.c` 형식의 3단계까지 가능합니다.
 
 ### API 기본 URL
 
-운영자가 별도로 안내한 주소를 사용합니다. 이 문서 예시에서는:
+```
+https://dns.madcamp-kaist.org
+```
+
+| 엔드포인트 | 전체 URL |
+|---|---|
+| 내 정보 | `https://dns.madcamp-kaist.org/v1/me` |
+| 서브도메인 목록 | `https://dns.madcamp-kaist.org/v1/subdomains` |
+| DNS 레코드 목록 | `https://dns.madcamp-kaist.org/v1/records` |
+| DNS 레코드 생성 | `https://dns.madcamp-kaist.org/v1/records` |
+| DNS 레코드 수정 | `https://dns.madcamp-kaist.org/v1/records/:id` |
+| DNS 레코드 삭제 | `https://dns.madcamp-kaist.org/v1/records/:id` |
 
 ```bash
-BASE_URL=https://api.madcamp.example.com
+# 터미널 환경변수로 설정해두면 편합니다
+export API_KEY="여기에_발급받은_키"
+export BASE_URL="https://dns.madcamp-kaist.org"
 ```
 
 ---
@@ -85,7 +98,7 @@ Authorization: Bearer <API 키>
 
 ```bash
 curl -H "Authorization: Bearer dns_a1b2c3d4e5f6..." \
-     https://api.madcamp.example.com/v1/me
+     https://dns.madcamp-kaist.org/v1/me
 ```
 
 ---
@@ -113,7 +126,7 @@ curl -s \
   "student": {
     "id": "clyxxx...",
     "email": "alice@example.com",
-    "subdomain": "alice.madcamp.example.com",
+    "subdomain": "alice.madcamp-kaist.org",
     "recordLimit": 10,
     "isActive": true,
     "createdAt": "2026-06-25T09:00:00.000Z"
@@ -145,13 +158,13 @@ curl -s \
 {
   "primary": {
     "subdomain": "alice",
-    "fqdn": "alice.madcamp.example.com"
+    "fqdn": "alice.madcamp-kaist.org"
   },
   "additional": [
     {
       "id": "sub_abc123",
       "subdomain": "myproject",
-      "fqdn": "myproject.madcamp.example.com",
+      "fqdn": "myproject.madcamp-kaist.org",
       "createdAt": "2026-06-25T11:00:00.000Z"
     }
   ],
@@ -202,7 +215,7 @@ curl -s -X POST \
   "subdomain": {
     "id": "sub_abc123",
     "subdomain": "myproject",
-    "fqdn": "myproject.madcamp.example.com",
+    "fqdn": "myproject.madcamp-kaist.org",
     "createdAt": "2026-06-25T11:00:00.000Z"
   }
 }
@@ -260,7 +273,7 @@ curl -s \
     {
       "id": "rec_abc123",
       "name": "www",
-      "fqdn": "www.alice.madcamp.example.com",
+      "fqdn": "www.alice.madcamp-kaist.org",
       "type": "A",
       "content": "1.2.3.4",
       "ttl": 300,
@@ -271,7 +284,7 @@ curl -s \
     {
       "id": "rec_def456",
       "name": "api",
-      "fqdn": "api.myproject.madcamp.example.com",
+      "fqdn": "api.myproject.madcamp-kaist.org",
       "type": "A",
       "content": "5.6.7.8",
       "ttl": 60,
@@ -325,7 +338,7 @@ curl -s -X POST \
   -H "Content-Type: application/json" \
   -d '{"name": "www", "type": "A", "content": "1.2.3.4"}' \
   $BASE_URL/v1/records
-# → www.alice.madcamp.example.com
+# → www.alice.madcamp-kaist.org
 ```
 
 #### 추가 서브도메인 아래에 생성 (subdomain 명시)
@@ -336,7 +349,7 @@ curl -s -X POST \
   -H "Content-Type: application/json" \
   -d '{"name": "api", "type": "A", "content": "5.6.7.8", "subdomain": "myproject"}' \
   $BASE_URL/v1/records
-# → api.myproject.madcamp.example.com
+# → api.myproject.madcamp-kaist.org
 ```
 
 #### CNAME 예시 (GitHub Pages 연결)
@@ -366,7 +379,7 @@ curl -s -X POST \
   "record": {
     "id": "rec_abc123",
     "name": "www",
-    "fqdn": "www.alice.madcamp.example.com",
+    "fqdn": "www.alice.madcamp-kaist.org",
     "type": "A",
     "content": "1.2.3.4",
     "ttl": 1,
@@ -383,9 +396,31 @@ curl -s -X POST \
 |---|---|---|
 | 소문자 영문, 숫자, 하이픈 | `www`, `api-v2`, `dev` | `MY-APP`, `내이름` |
 | 점(`.`)으로 최대 3단계 | `v1.api.service` | `a.b.c.d` |
+| **`@` = 서브도메인 자체에 직접 바인딩** | `@` | |
 | 빈 문자열 불가 | | `""` |
 | 와일드카드, 언더스코어 불가 | | `*.service`, `_acme` |
-| `@`, `www`, `mail`, `ftp` 등 예약어 불가 | | `admin`, `root` |
+| `www`, `mail`, `ftp` 등 예약어 불가 | | `admin`, `root` |
+
+> **`@` 사용 예시**: `name: "@"` 으로 레코드를 만들면 `alice.madcamp-kaist.org` 자체에 IP가 바인딩됩니다.
+
+#### 서브도메인 자체(apex)에 IP 바인딩 (`@`)
+
+```bash
+# alice.madcamp-kaist.org 자체를 1.2.3.4로 지정
+curl -s -X POST \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "@", "type": "A", "content": "1.2.3.4"}' \
+  https://dns.madcamp-kaist.org/v1/records
+
+# 추가 서브도메인 자체에도 동일하게 적용 가능
+curl -s -X POST \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "@", "type": "A", "content": "5.6.7.8", "subdomain": "myproject"}' \
+  https://dns.madcamp-kaist.org/v1/records
+# → myproject.madcamp-kaist.org = 5.6.7.8
+```
 
 ---
 
@@ -557,7 +592,7 @@ Cloudflare 리버스 프록시를 통해 트래픽이 전달됩니다:
 
 ```bash
 export API_KEY="dns_여기에_발급받은_키"
-export BASE_URL="https://api.madcamp.example.com"
+export BASE_URL="https://dns.madcamp-kaist.org"
 ```
 
 ---
@@ -691,8 +726,8 @@ DNS 전파에는 TTL 시간만큼 걸립니다. TTL 300이면 최대 5분 대기
 
 확인 방법:
 ```bash
-dig www.alice.madcamp.example.com A
-nslookup www.alice.madcamp.example.com 1.1.1.1
+dig www.alice.madcamp-kaist.org A
+nslookup www.alice.madcamp-kaist.org 1.1.1.1
 ```
 
 ---

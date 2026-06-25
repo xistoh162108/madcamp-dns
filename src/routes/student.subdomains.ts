@@ -131,11 +131,16 @@ app.delete("/:id", async (c) => {
   }
 
   const rootDomain = process.env.ROOT_DOMAIN!;
+  const apexFqdn = `${owned.subdomain}.${rootDomain}`;
   const fqdnSuffix = `.${owned.subdomain}.${rootDomain}`;
 
-  // Prevent release while DNS records still exist (avoids orphaned CF records)
+  // Prevent release while DNS records still exist (avoids orphaned CF records).
+  // Must check both sub-records (endsWith) AND the apex "@" record (exact match).
   const recordCount = await prisma.dnsRecord.count({
-    where: { studentId: auth.student.id, fqdn: { endsWith: fqdnSuffix } },
+    where: {
+      studentId: auth.student.id,
+      OR: [{ fqdn: { endsWith: fqdnSuffix } }, { fqdn: apexFqdn }],
+    },
   });
   if (recordCount > 0) {
     throw invalidRequest(
