@@ -9,6 +9,8 @@ RUN npm ci --omit=dev
 
 # ---- build stage: compile TypeScript + generate Prisma client ----
 FROM base AS builder
+# Override NODE_ENV so npm ci installs devDependencies (typescript, etc.)
+ENV NODE_ENV=development
 COPY package*.json ./
 RUN npm ci
 COPY tsconfig.json ./
@@ -19,6 +21,9 @@ RUN npm run build
 
 # ---- runtime stage ----
 FROM base AS runner
+
+# Prisma's query/schema engine binaries require libssl at runtime on Alpine.
+RUN apk add --no-cache openssl
 
 # Run as a non-root user: reduces blast radius if Node.js is compromised.
 # node:20-alpine ships with a built-in "node" user (uid 1000).
