@@ -1,9 +1,10 @@
 import { Hono } from "hono";
 import { prisma } from "../db/prisma.js";
-import { requireStudent } from "../lib/auth.js";
+import { requireStudent, type StudentContext } from "../lib/auth.js";
 import { checkStudentRateLimit } from "../lib/rate-limit.js";
 import { createDnsRecord, patchDnsRecord, deleteDnsRecord } from "../lib/cloudflare.js";
 import { auditSafe, getClientIp, getUserAgent } from "../lib/audit.js";
+import { lockSubdomain } from "../lib/subdomain.js";
 import {
   validateRelativeName,
   validateRecordType,
@@ -22,7 +23,15 @@ import {
   invalidRequest,
 } from "../lib/errors.js";
 
-const app = new Hono();
+const app = new Hono<{ Variables: { auth: StudentContext } }>();
+
+// --- Middleware: auth + rate limit, once, for every handler below ---
+app.use("*", async (c, next) => {
+  const auth = await requireStudent(c);
+  await checkStudentRateLimit(auth.apiKey.keyHash, c.req.method);
+  c.set("auth", auth);
+  await next();
+});
 
 function safeRecord(r: {
   id: string;
@@ -77,8 +86,7 @@ async function checkConflicts(
 
 // --- GET /v1/records ---
 app.get("/", async (c) => {
-  const auth = await requireStudent(c);
-  await checkStudentRateLimit(auth.apiKey.keyHash, c.req.method);
+  const auth = c.get("auth");
 
   const records = await prisma.dnsRecord.findMany({
     where: { studentId: auth.student.id },
@@ -90,8 +98,7 @@ app.get("/", async (c) => {
 
 // --- GET /v1/records/:id ---
 app.get("/:id", async (c) => {
-  const auth = await requireStudent(c);
-  await checkStudentRateLimit(auth.apiKey.keyHash, c.req.method);
+  const auth = c.get("auth");
 
   const record = await prisma.dnsRecord.findUnique({
     where: { id: c.req.param("id") },
@@ -104,8 +111,7 @@ app.get("/:id", async (c) => {
 
 // --- POST /v1/records ---
 app.post("/", async (c) => {
-  const auth = await requireStudent(c);
-  await checkStudentRateLimit(auth.apiKey.keyHash, c.req.method);
+  const auth = c.get("auth");
 
   const body = await c.req.json().catch(() => null);
   const parsed = CreateRecordSchema.safeParse(body);
@@ -161,6 +167,24 @@ app.post("/", async (c) => {
   let record;
   try {
     record = await prisma.$transaction(async (tx) => {
+      // Locked on the target subdomain string so a concurrent
+      // DELETE /v1/subdomains/:id release can't slip in between here and the
+      // insert below — see student.subdomains.ts for the other side of this
+      // race and src/lib/subdomain.ts for why the lock exists.
+      await lockSubdomain(tx, targetSubdomain);
+
+      if (targetSubdomain !== auth.student.subdomain) {
+        const stillOwned = await tx.ownedSubdomain.findFirst({
+          where: { studentId: auth.student.id, subdomain: targetSubdomain },
+          select: { id: true },
+        });
+        if (!stillOwned) {
+          throw invalidRequest(
+            `The subdomain "${targetSubdomain}" was released before this record could be created.`
+          );
+        }
+      }
+
       const freshCount = await tx.dnsRecord.count({ where: { studentId: auth.student.id } });
       if (freshCount >= auth.student.recordLimit) {
         throw recordLimitExceeded(auth.student.recordLimit);
@@ -200,8 +224,7 @@ app.post("/", async (c) => {
 
 // --- PATCH /v1/records/:id ---
 app.patch("/:id", async (c) => {
-  const auth = await requireStudent(c);
-  await checkStudentRateLimit(auth.apiKey.keyHash, c.req.method);
+  const auth = c.get("auth");
 
   const record = await prisma.dnsRecord.findUnique({ where: { id: c.req.param("id") } });
   if (!record) throw notFound("DNS record");
@@ -251,8 +274,6 @@ app.patch("/:id", async (c) => {
   if (update.ttl !== undefined) cfPatch.ttl = newTtl;
   if (update.proxied !== undefined) cfPatch.proxied = update.proxied;
 
-  await patchDnsRecord(record.cloudflareRecordId, cfPatch);
-
   const before = {
     relativeName: record.relativeName,
     fqdn: record.fqdn,
@@ -261,16 +282,37 @@ app.patch("/:id", async (c) => {
     proxied: record.proxied,
   };
 
-  const updated = await prisma.dnsRecord.update({
-    where: { id: record.id },
-    data: {
-      relativeName: newRelativeName,
-      fqdn: newFqdn,
-      content: update.content ?? record.content,
-      ttl: newTtl,
-      proxied: update.proxied ?? record.proxied,
-    },
-  });
+  await patchDnsRecord(record.cloudflareRecordId, cfPatch);
+
+  let updated;
+  try {
+    updated = await prisma.dnsRecord.update({
+      where: { id: record.id },
+      data: {
+        relativeName: newRelativeName,
+        fqdn: newFqdn,
+        content: update.content ?? record.content,
+        ttl: newTtl,
+        proxied: update.proxied ?? record.proxied,
+      },
+    });
+  } catch (dbErr) {
+    // Compensate: best-effort revert Cloudflare back to its pre-patch state,
+    // so CF and the DB don't silently diverge when the DB write fails after
+    // Cloudflare already accepted the new values.
+    await patchDnsRecord(record.cloudflareRecordId, {
+      name: before.fqdn,
+      content: before.content,
+      ttl: before.ttl,
+      proxied: before.proxied,
+    }).catch((revertErr) => {
+      console.error(
+        "[patch-compensation] Failed to revert Cloudflare after DB update failure — record now inconsistent:",
+        { recordId: record.id, cloudflareRecordId: record.cloudflareRecordId, dbErr, revertErr }
+      );
+    });
+    throw dbErr;
+  }
 
   auditSafe({
     actorType: "STUDENT",
@@ -295,15 +337,25 @@ app.patch("/:id", async (c) => {
 
 // --- DELETE /v1/records/:id ---
 app.delete("/:id", async (c) => {
-  const auth = await requireStudent(c);
-  await checkStudentRateLimit(auth.apiKey.keyHash, c.req.method);
+  const auth = c.get("auth");
 
   const record = await prisma.dnsRecord.findUnique({ where: { id: c.req.param("id") } });
   if (!record) throw notFound("DNS record");
   if (record.studentId !== auth.student.id) throw forbiddenRecord();
 
-  await deleteDnsRecord(record.cloudflareRecordId);
+  // DB is authoritative for "is this record gone" — delete it first, then
+  // best-effort clean up Cloudflare. If Cloudflare cleanup fails, the DB and
+  // the client's view are still accurate; the only residual issue is an
+  // orphaned CF record that no longer has a DB counterpart, which is a
+  // background ops concern (logged below), not a client-facing error.
   await prisma.dnsRecord.delete({ where: { id: record.id } });
+
+  await deleteDnsRecord(record.cloudflareRecordId).catch((cfErr) => {
+    console.error(
+      "[delete-orphan] DB record deleted but Cloudflare cleanup failed — needs manual cleanup:",
+      { recordId: record.id, cloudflareRecordId: record.cloudflareRecordId, cfErr }
+    );
+  });
 
   auditSafe({
     actorType: "STUDENT",

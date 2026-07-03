@@ -1,6 +1,7 @@
 import { prisma } from "../db/prisma.js";
 import { Prisma } from "@prisma/client";
 import type { Context } from "hono";
+import { getConnInfo } from "@hono/node-server/conninfo";
 
 export type AuditAction =
   | "STUDENT_CREATED"
@@ -61,13 +62,37 @@ export function auditSafe(params: AuditParams): void {
   });
 }
 
+// Trust order (safest first):
+//   1. CF-Connecting-IP — only when TRUST_CF_CONNECTING_IP=true, i.e. once
+//      confirmed the zone is actually orange-cloud-proxied through Cloudflare.
+//      Otherwise this header is entirely client-settable and would let an
+//      attacker bypass admin rate limiting and forge audit log IPs.
+//   2. X-Real-IP — safe default. nginx's documented vhost (see DEPLOYMENT.md)
+//      sets this unconditionally to $remote_addr, so a client can never
+//      override it past nginx.
+//   3. Raw TCP socket peer address (via Hono's Node conninfo helper) — never
+//      attacker-controlled, used when running with no reverse proxy at all
+//      (e.g. local dev) or if X-Real-IP is unexpectedly absent.
+// X-Forwarded-For is deliberately NOT trusted: nginx's $proxy_add_x_forwarded_for
+// *appends* to any client-supplied value rather than replacing it, so its
+// first entry is attacker-controlled.
 export function getClientIp(c: Context): string {
-  return (
-    c.req.header("cf-connecting-ip") ??
-    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
-    c.req.header("x-real-ip") ??
-    "unknown"
-  );
+  if (process.env.TRUST_CF_CONNECTING_IP === "true") {
+    const cfIp = c.req.header("cf-connecting-ip");
+    if (cfIp) return cfIp;
+  }
+
+  const realIp = c.req.header("x-real-ip");
+  if (realIp) return realIp;
+
+  try {
+    const socketAddress = getConnInfo(c).remote.address;
+    if (socketAddress) return socketAddress;
+  } catch {
+    // getConnInfo can throw outside a real Node request context (e.g. unit tests).
+  }
+
+  return "unknown";
 }
 
 export function getUserAgent(c: Context): string {

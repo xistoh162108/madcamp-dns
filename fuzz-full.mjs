@@ -27,8 +27,11 @@ const {
   validateSubdomainName,
   extractSubdomainFromFqdn,
   BLOCKED_SUBDOMAINS,
+  BLOCKED_NAMES,
   SUBDOMAIN_RE,
 } = await import("./dist/lib/validate-dns.js");
+
+const { getClientIp } = await import("./dist/lib/audit.js");
 
 const {
   AppError,
@@ -743,6 +746,94 @@ const sub32 = "a" + "b".repeat(30) + "c"; // 32 chars — valid (1+30+1)
 doesNotThrow("F15: 32-char subdomain (max) allowed", () => validateSubdomainName(sub32));
 const sub33 = "a" + "b".repeat(31) + "c"; // 33 chars — invalid
 throws("F15: 33-char subdomain (over max) rejected", () => validateSubdomainName(sub33), "");
+
+// F16. "dns" and "git" are reserved — must be blocked both as a whole
+// subdomain claim and as a DNS record's leaf name.
+for (const word of ["dns", "git"]) {
+  throws(`F16: "${word}" blocked as subdomain`, () => validateSubdomainName(word), "reserved");
+  throws(`F16: "${word}" blocked as record name`, () => validateRelativeName(word), "not allowed");
+}
+
+// F17. BLOCKED_NAMES / BLOCKED_SUBDOMAINS unification — BLOCKED_NAMES must be
+// a strict subset of BLOCKED_SUBDOMAINS except for the one deliberate
+// difference ("www" is a normal record leaf but not claimable as a whole
+// subdomain). This locks in that the two lists can no longer silently drift
+// apart the way they had before (ssh/vpn were record-blocked but
+// subdomain-claimable; webmail/mx/sftp/administrator/cpanel/whm/ns/ns5/rdns
+// were subdomain-blocked but not record-blocked).
+ok("F17: BLOCKED_NAMES is a Set", BLOCKED_NAMES instanceof Set);
+{
+  const extra = [...BLOCKED_NAMES].filter((w) => !BLOCKED_SUBDOMAINS.has(w));
+  ok(`F17: every BLOCKED_NAMES entry is also in BLOCKED_SUBDOMAINS (extra: ${JSON.stringify(extra)})`, extra.length === 0);
+  const diff = [...BLOCKED_SUBDOMAINS].filter((w) => !BLOCKED_NAMES.has(w));
+  ok(`F17: BLOCKED_SUBDOMAINS differs from BLOCKED_NAMES only by "www" (diff: ${JSON.stringify(diff)})`,
+    diff.length === 1 && diff[0] === "www");
+}
+
+// F18. Previously-drifted words are now blocked consistently in BOTH
+// directions (as a record name via validateRelativeName, and as a subdomain
+// via validateSubdomainName).
+const previouslyDrifted = [
+  "ssh", "vpn",              // were record-blocked only
+  "webmail", "mx", "sftp",   // were subdomain-blocked only
+  "administrator", "cpanel", "whm", "ns", "ns5", "rdns",
+];
+for (const word of previouslyDrifted) {
+  throws(`F18: "${word}" blocked as subdomain (drift check)`, () => validateSubdomainName(word), "reserved");
+  throws(`F18: "${word}" blocked as record name (drift check)`, () => validateRelativeName(word), "not allowed");
+}
+
+// ============================================================================
+// SECTION G — getClientIp() trust-order (spoofable-IP fix)
+// ============================================================================
+
+console.log("── G: getClientIp() Trust Order ─────────────────────────────────");
+
+function fakeContext({ headers = {}, remoteAddress = "9.9.9.9" } = {}) {
+  const lower = Object.fromEntries(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v]));
+  return {
+    req: { header: (name) => lower[name.toLowerCase()] },
+    env: { incoming: { socket: { remoteAddress } } },
+  };
+}
+
+const savedTrustCf = process.env.TRUST_CF_CONNECTING_IP;
+
+// G1. Only X-Real-IP set → that value wins.
+delete process.env.TRUST_CF_CONNECTING_IP;
+ok("G1: X-Real-IP alone is trusted",
+  getClientIp(fakeContext({ headers: { "x-real-ip": "1.1.1.1" } })) === "1.1.1.1");
+
+// G2. X-Real-IP present AND a spoofed CF-Connecting-IP present, trust flag
+// unset → X-Real-IP wins, the CF header is ignored (this is the actual fix).
+ok("G2: X-Real-IP wins over CF-Connecting-IP when trust flag is unset",
+  getClientIp(fakeContext({
+    headers: { "x-real-ip": "1.1.1.1", "cf-connecting-ip": "6.6.6.6" },
+  })) === "1.1.1.1");
+
+// G3. TRUST_CF_CONNECTING_IP=true and both headers set → CF-Connecting-IP wins.
+process.env.TRUST_CF_CONNECTING_IP = "true";
+ok("G3: CF-Connecting-IP wins when TRUST_CF_CONNECTING_IP=true",
+  getClientIp(fakeContext({
+    headers: { "x-real-ip": "1.1.1.1", "cf-connecting-ip": "6.6.6.6" },
+  })) === "6.6.6.6");
+delete process.env.TRUST_CF_CONNECTING_IP;
+
+// G4. No headers at all → falls back to the socket remote address.
+ok("G4: falls back to socket remoteAddress when no headers present",
+  getClientIp(fakeContext({ remoteAddress: "8.8.4.4" })) === "8.8.4.4");
+
+// G5. X-Forwarded-For alone (no X-Real-IP) is never trusted by default —
+// falls through to the socket address instead, since X-Forwarded-For is
+// spoofable (nginx appends to it rather than replacing it).
+ok("G5: X-Forwarded-For alone is not trusted (falls back to socket)",
+  getClientIp(fakeContext({
+    headers: { "x-forwarded-for": "6.6.6.6" },
+    remoteAddress: "8.8.4.4",
+  })) === "8.8.4.4");
+
+if (savedTrustCf === undefined) delete process.env.TRUST_CF_CONNECTING_IP;
+else process.env.TRUST_CF_CONNECTING_IP = savedTrustCf;
 
 // ============================================================================
 // Summary

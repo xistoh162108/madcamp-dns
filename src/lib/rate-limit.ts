@@ -9,6 +9,16 @@ interface RateLimitConfig {
 const STUDENT_TOTAL: RateLimitConfig = { limit: 30, windowSeconds: 60 };
 const STUDENT_WRITE: RateLimitConfig = { limit: 10, windowSeconds: 60 };
 const ADMIN_TOTAL: RateLimitConfig = { limit: 120, windowSeconds: 60 };
+// Coarse, IP-keyed circuit-breaker applied to /v1/* BEFORE credentials are
+// checked. requireStudent() does a DB findUnique for every request — without
+// this, an attacker sending garbage bearer tokens (no valid key needed) can
+// hammer the DB with unlimited lookups, since per-key rate limiting only
+// starts once a *valid* key hash is known. Deliberately generous: a whole
+// class sharing one NAT'd campus IP doing light polling must never be
+// clipped by this. It is a backstop in front of the DB, not a replacement
+// for the STUDENT_TOTAL/STUDENT_WRITE buckets above, which still apply
+// per-key after auth succeeds.
+const PRE_AUTH_TOTAL: RateLimitConfig = { limit: 300, windowSeconds: 60 };
 
 const WRITE_METHODS = new Set(["POST", "PATCH", "DELETE"]);
 
@@ -74,6 +84,12 @@ export async function checkAdminRateLimit(ip: string): Promise<void> {
   // "admin:" prefix can never collide with a SHA-256 hex hash (which uses only 0-9a-f)
   const keyHash = `admin:${ip}`;
   await checkBucket(keyHash, "total", ADMIN_TOTAL);
+}
+
+export async function checkPreAuthRateLimit(ip: string): Promise<void> {
+  // "preauth:" prefix can't collide with a SHA-256 hex hash or the "admin:" prefix.
+  const keyHash = `preauth:${ip}`;
+  await checkBucket(keyHash, "total", PRE_AUTH_TOTAL);
 }
 
 export async function cleanupExpiredRateLimits(): Promise<void> {

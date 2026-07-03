@@ -6,13 +6,14 @@ import { generateTestApiKey } from "../lib/api-key.js";
 import { auditSafe, getClientIp, getUserAgent } from "../lib/audit.js";
 import { checkAdminRateLimit } from "../lib/rate-limit.js";
 import { invalidRequest } from "../lib/errors.js";
+import { lockSubdomain, assertSubdomainAvailable } from "../lib/subdomain.js";
 
 const app = new Hono();
 
 app.use("*", async (c, next) => {
-  await requireAdmin(c);
   const ip = getClientIp(c);
   await checkAdminRateLimit(ip);
+  await requireAdmin(c);
   await next();
 });
 
@@ -37,8 +38,18 @@ app.post("/", async (c) => {
 
     let student = await prisma.student.findUnique({ where: { email } });
     if (!student) {
-      student = await prisma.student.create({
-        data: { email, subdomain, recordLimit },
+      // Only lock/check the subdomain when actually creating a new student —
+      // an existing test student just gets a new key issued below, with no
+      // insert to race. Locking here (rather than relying on Student.subdomain's
+      // unique index alone) is what catches the case where a real student has
+      // already claimed this exact string via POST /v1/subdomains, since that's
+      // a separate table with no DB-level constraint shared with Student.subdomain.
+      student = await prisma.$transaction(async (tx) => {
+        await lockSubdomain(tx, subdomain);
+        await assertSubdomainAvailable(tx, subdomain);
+        return tx.student.create({
+          data: { email, subdomain, recordLimit },
+        });
       });
     }
 

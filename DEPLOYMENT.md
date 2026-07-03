@@ -333,6 +333,15 @@ ORDER BY pg_total_relation_size(relid) DESC;
 | `CLOUDFLARE_ZONE_ID` | **Yes** | Cloudflare Zone ID |
 | `CLOUDFLARE_API_TOKEN` | **Yes** | Cloudflare API Token (DNS Edit scope) |
 | `ADMIN_API_KEY` | **Yes** | Admin bearer token |
+| `TRUST_CF_CONNECTING_IP` | No | `true`/unset (default `false`). Only set `true` if this hostname is confirmed orange-cloud-proxied through Cloudflare — see below. |
+
+### Client IP resolution (`TRUST_CF_CONNECTING_IP`)
+
+Rate limiting and audit logs need the real client IP. By default (`TRUST_CF_CONNECTING_IP` unset) the server trusts the `X-Real-IP` header, which the documented nginx vhost below sets unconditionally to the actual TCP peer — nginx overwrites it regardless of what a client sends, so it can't be spoofed past nginx.
+
+Only set `TRUST_CF_CONNECTING_IP=true` if you've **confirmed** the API's own hostname (not just individual DNS records) is actually proxied through Cloudflare's orange cloud — in that topology `CF-Connecting-IP` is more accurate than `X-Real-IP` (which would otherwise just show Cloudflare's edge IP). Enabling this when the hostname is DNS-only (grey cloud) or sits directly behind plain nginx lets any client forge their own `CF-Connecting-IP` header and bypass the 120 req/min admin rate limit, and pollutes `AuditLog.ip` with attacker-controlled values.
+
+To check after deploying: `curl -H "Authorization: Bearer $ADMIN_KEY" "$BASE_URL/admin/audit-logs?limit=1"` and confirm the `ip` field looks like a real, plausible client IP.
 
 *Required only when using docker-compose. Not needed if `DATABASE_URL` points to an external DB.
 

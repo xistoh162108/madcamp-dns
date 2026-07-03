@@ -6,15 +6,19 @@ import { generateApiKey } from "../lib/api-key.js";
 import { auditSafe, getClientIp, getUserAgent } from "../lib/audit.js";
 import { checkAdminRateLimit } from "../lib/rate-limit.js";
 import { invalidRequest, notFound } from "../lib/errors.js";
+import { SUBDOMAIN_RE, validateSubdomainName } from "../lib/validate-dns.js";
+import { lockSubdomain, lockSubdomains, assertSubdomainAvailable } from "../lib/subdomain.js";
 import { Prisma } from "@prisma/client";
 
 const app = new Hono();
 
 // --- Middleware ---
+// Rate-limit by IP BEFORE checking the admin credential, so brute-force /
+// credential-guessing traffic is throttled even when the key is wrong.
 app.use("*", async (c, next) => {
-  await requireAdmin(c);
   const ip = getClientIp(c);
   await checkAdminRateLimit(ip);
+  await requireAdmin(c);
   await next();
 });
 
@@ -47,7 +51,7 @@ function safeStudentView(s: {
 const CreateStudentSchema = z.object({
   email: z.string().email(),
   name: z.string().optional(),
-  subdomain: z.string().regex(/^[a-z0-9][a-z0-9-]{0,30}[a-z0-9]$|^[a-z0-9]$/, "Subdomain must be lowercase alphanumeric with hyphens"),
+  subdomain: z.string().refine((s) => SUBDOMAIN_RE.test(s), "Subdomain must be lowercase alphanumeric with hyphens"),
   recordLimit: z.number().int().min(1).max(100).default(10),
 });
 
@@ -56,38 +60,43 @@ app.post("/", async (c) => {
   const parsed = CreateStudentSchema.safeParse(body);
   if (!parsed.success) throw invalidRequest("Invalid request body.", parsed.error.flatten());
 
-  const { email, name, subdomain, recordLimit } = parsed.data;
-
-  const [existing, ownedConflict] = await Promise.all([
-    prisma.student.findFirst({ where: { OR: [{ email }, { subdomain }] } }),
-    prisma.ownedSubdomain.findFirst({ where: { subdomain }, select: { id: true } }),
-  ]);
-  if (ownedConflict) {
-    throw invalidRequest("Subdomain is already claimed by a student as an additional subdomain.");
-  }
-  if (existing) {
-    throw invalidRequest(
-      existing.email === email ? "Email already in use." : "Subdomain already taken."
-    );
-  }
+  // Normalize casing up front: email is a login identifier, and its uniqueness
+  // must not depend on how a caller happened to capitalize it.
+  const email = parsed.data.email.trim().toLowerCase();
+  const { name, subdomain, recordLimit } = parsed.data;
 
   const { raw, hash, keyPrefix } = generateApiKey();
 
   let student;
   try {
-    student = await prisma.student.create({
-      data: {
-        email,
-        name,
-        subdomain,
-        recordLimit,
-        apiKeys: {
-          create: { keyHash: hash, keyPrefix, label: "default" },
+    student = await prisma.$transaction(async (tx) => {
+      // Lock this subdomain string for the duration of the check+insert so a
+      // concurrent claim (admin create/bulk/test-keys, or a student's own
+      // POST /v1/subdomains) can't slip in between the availability check and
+      // the write — see src/lib/subdomain.ts for why this is needed (Student
+      // and OwnedSubdomain are separate tables with no shared DB constraint).
+      await lockSubdomain(tx, subdomain);
+      await assertSubdomainAvailable(tx, subdomain);
+
+      const existingEmail = await tx.student.findFirst({ where: { email }, select: { id: true } });
+      if (existingEmail) throw invalidRequest("Email already in use.");
+
+      return tx.student.create({
+        data: {
+          email,
+          name,
+          subdomain,
+          recordLimit,
+          apiKeys: {
+            create: { keyHash: hash, keyPrefix, label: "default" },
+          },
         },
-      },
+      });
     });
   } catch (err) {
-    // Concurrent request may have claimed the email or subdomain between check and insert
+    // Belt-and-suspenders: the advisory lock above should make this
+    // unreachable in normal operation, but keep the P2002 catch as a safety
+    // net against any edge case outside the lock (e.g. a manual psql insert).
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       throw invalidRequest("Email or subdomain is already in use.");
     }
@@ -121,9 +130,7 @@ const BulkCreateSchema = z.object({
       z.object({
         email: z.string().email(),
         name: z.string().optional(),
-        subdomain: z
-          .string()
-          .regex(/^[a-z0-9][a-z0-9-]{0,30}[a-z0-9]$|^[a-z0-9]$/, "Invalid subdomain"),
+        subdomain: z.string().refine((s) => SUBDOMAIN_RE.test(s), "Invalid subdomain"),
       })
     )
     .min(1)
@@ -136,7 +143,9 @@ app.post("/bulk", async (c) => {
   const parsed = BulkCreateSchema.safeParse(body);
   if (!parsed.success) throw invalidRequest("Invalid request body.", parsed.error.flatten());
 
-  const { students, recordLimit } = parsed.data;
+  const { recordLimit } = parsed.data;
+  // Normalize email casing up front (see POST / for rationale).
+  const students = parsed.data.students.map((s) => ({ ...s, email: s.email.trim().toLowerCase() }));
 
   // Check uniqueness within request
   const emails = students.map((s) => s.email);
@@ -146,27 +155,9 @@ app.post("/bulk", async (c) => {
   if (new Set(subdomains).size !== subdomains.length)
     throw invalidRequest("Duplicate subdomains in request.");
 
-  // Check against DB — both Student table and OwnedSubdomain (students can claim subdomains)
-  const [conflicts, ownedConflicts] = await Promise.all([
-    prisma.student.findMany({
-      where: { OR: [{ email: { in: emails } }, { subdomain: { in: subdomains } }] },
-      select: { email: true, subdomain: true },
-    }),
-    prisma.ownedSubdomain.findMany({
-      where: { subdomain: { in: subdomains } },
-      select: { subdomain: true },
-    }),
-  ]);
-  if (conflicts.length > 0) {
-    throw invalidRequest("Some emails or subdomains are already in use.", {
-      conflicts: conflicts.map((c) => ({ email: c.email, subdomain: c.subdomain })),
-    });
-  }
-  if (ownedConflicts.length > 0) {
-    throw invalidRequest("Some subdomains are already claimed by students as additional subdomains.", {
-      conflicts: ownedConflicts.map((c) => ({ subdomain: c.subdomain })),
-    });
-  }
+  // Reject reserved/blocklisted subdomains up front (format is already
+  // enforced by the Zod schema's SUBDOMAIN_RE refine above).
+  for (const s of subdomains) validateSubdomainName(s);
 
   // Generate all keys before the transaction so crypto work is outside the DB lock
   const prepared = students.map((s) => {
@@ -177,6 +168,32 @@ app.post("/bulk", async (c) => {
   let created;
   try {
     created = await prisma.$transaction(async (tx) => {
+      // Lock every subdomain in this batch (sorted, to avoid lock-ordering
+      // deadlocks against another concurrent multi-subdomain transaction)
+      // before re-checking availability inside the lock.
+      await lockSubdomains(tx, subdomains);
+
+      const [conflicts, ownedConflicts] = await Promise.all([
+        tx.student.findMany({
+          where: { OR: [{ email: { in: emails } }, { subdomain: { in: subdomains } }] },
+          select: { email: true, subdomain: true },
+        }),
+        tx.ownedSubdomain.findMany({
+          where: { subdomain: { in: subdomains } },
+          select: { subdomain: true },
+        }),
+      ]);
+      if (conflicts.length > 0) {
+        throw invalidRequest("Some emails or subdomains are already in use.", {
+          conflicts: conflicts.map((c) => ({ email: c.email, subdomain: c.subdomain })),
+        });
+      }
+      if (ownedConflicts.length > 0) {
+        throw invalidRequest("Some subdomains are already claimed by students as additional subdomains.", {
+          conflicts: ownedConflicts.map((c) => ({ subdomain: c.subdomain })),
+        });
+      }
+
       const rows = [];
       for (const { student: s, hash, keyPrefix } of prepared) {
         const row = await tx.student.create({
@@ -193,7 +210,8 @@ app.post("/bulk", async (c) => {
       return rows;
     });
   } catch (err) {
-    // A concurrent request may have taken an email/subdomain between our check and the transaction
+    // Belt-and-suspenders: the advisory locks above should make this
+    // unreachable in normal operation (see POST / for rationale).
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       throw invalidRequest("One or more emails or subdomains are already in use (concurrent conflict).");
     }

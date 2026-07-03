@@ -3,7 +3,8 @@ import { Hono } from "hono";
 import { randomUUID } from "crypto";
 import type { Server as HttpServer } from "http";
 import { AppError, toErrorResponse, internalError } from "./lib/errors.js";
-import { cleanupExpiredRateLimits } from "./lib/rate-limit.js";
+import { cleanupExpiredRateLimits, checkPreAuthRateLimit } from "./lib/rate-limit.js";
+import { getClientIp } from "./lib/audit.js";
 import { prisma } from "./db/prisma.js";
 
 // Routes
@@ -148,6 +149,15 @@ app.route("/admin/records", adminRecordsRouter);
 app.route("/admin/audit-logs", adminAuditRouter);
 
 // ── Student routes ───────────────────────────────────────────────────────────
+// Coarse IP-keyed rate limit BEFORE any credential is checked — requireStudent()
+// does a DB lookup per request, so this is what actually caps DB-hammering from
+// invalid-token spam (per-key limits in checkStudentRateLimit only kick in once
+// a *valid* key is resolved). See checkPreAuthRateLimit's doc comment.
+app.use("/v1/*", async (c, next) => {
+  await checkPreAuthRateLimit(getClientIp(c));
+  await next();
+});
+
 app.route("/v1/me", studentMeRouter);
 app.route("/v1/records", studentRecordsRouter);
 app.route("/v1/subdomains", studentSubdomainsRouter);

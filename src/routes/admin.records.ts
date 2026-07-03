@@ -9,9 +9,9 @@ import { notFound } from "../lib/errors.js";
 const app = new Hono();
 
 app.use("*", async (c, next) => {
-  await requireAdmin(c);
   const ip = getClientIp(c);
   await checkAdminRateLimit(ip);
+  await requireAdmin(c);
   await next();
 });
 
@@ -61,9 +61,17 @@ app.delete("/:id", async (c) => {
   });
   if (!record) throw notFound("DNS record");
 
-  await deleteDnsRecord(record.cloudflareRecordId);
-
+  // DB is authoritative for "is this record gone" — delete it first, then
+  // best-effort clean up Cloudflare (mirrors the student-facing DELETE
+  // endpoint in student.records.ts; see that file for the full rationale).
   await prisma.dnsRecord.delete({ where: { id: record.id } });
+
+  await deleteDnsRecord(record.cloudflareRecordId).catch((cfErr) => {
+    console.error(
+      "[delete-orphan] DB record deleted but Cloudflare cleanup failed — needs manual cleanup:",
+      { recordId: record.id, cloudflareRecordId: record.cloudflareRecordId, cfErr }
+    );
+  });
 
   auditSafe({
     actorType: "ADMIN",

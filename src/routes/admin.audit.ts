@@ -9,9 +9,9 @@ import { invalidRequest } from "../lib/errors.js";
 const app = new Hono();
 
 app.use("*", async (c, next) => {
-  await requireAdmin(c);
   const ip = getClientIp(c);
   await checkAdminRateLimit(ip);
+  await requireAdmin(c);
   await next();
 });
 
