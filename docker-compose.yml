@@ -45,6 +45,11 @@ services:
       CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID:?CLOUDFLARE_ZONE_ID must be set}
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN must be set}
       ADMIN_API_KEY: ${ADMIN_API_KEY:?ADMIN_API_KEY must be set}
+      # Optional — only needed for the Cloudflare Tunnel feature (/v1/tunnels,
+      # /admin/tunnels). Left unset/empty is fine: those endpoints alone will
+      # return a clear error until configured; every other endpoint is unaffected.
+      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
+      CLOUDFLARE_TUNNEL_API_TOKEN: ${CLOUDFLARE_TUNNEL_API_TOKEN:-}
     depends_on:
       db:
         condition: service_healthy

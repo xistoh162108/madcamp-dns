@@ -21,6 +21,8 @@ model Student {
   records          DnsRecord[]
   auditLogs        AuditLog[]
   ownedSubdomains  OwnedSubdomain[]
+  tunnel           Tunnel?
+  tunnelHostnames  TunnelHostname[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -77,6 +79,46 @@ model DnsRecord {
   @@unique([studentId, fqdn, type])
   @@index([studentId])
   @@index([studentId, createdAt(sort: Desc)])
+}
+
+model Tunnel {
+  id                 String   @id @default(cuid())
+
+  studentId          String   @unique
+  student            Student  @relation(fields: [studentId], references: [id])
+
+  cloudflareTunnelId String   @unique
+  name               String   @unique
+
+  hostnames          TunnelHostname[]
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model TunnelHostname {
+  id                 String   @id @default(cuid())
+
+  tunnelId           String
+  tunnel             Tunnel   @relation(fields: [tunnelId], references: [id])
+
+  studentId          String
+  student            Student  @relation(fields: [studentId], references: [id])
+
+  subdomain          String
+  relativeName       String
+  fqdn               String   @unique
+  cloudflareRecordId String   @unique
+
+  localPort          Int
+  protocol           String   @default("http")
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([tunnelId])
+  @@index([studentId])
+  @@index([subdomain])
 }
 
 model RateLimitLog {

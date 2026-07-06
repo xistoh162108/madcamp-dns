@@ -149,14 +149,27 @@ app.post("/", async (c) => {
 
   const fqdn = buildFqdn(relativeName, targetSubdomain, rootDomain);
 
-  // Optimistic limit check — avoid the Cloudflare round-trip for obvious limit violations
-  const count = await prisma.dnsRecord.count({ where: { studentId: auth.student.id } });
-  if (count >= auth.student.recordLimit) {
+  // Optimistic limit check — avoid the Cloudflare round-trip for obvious limit violations.
+  // recordLimit is a combined cap across DnsRecord + TunnelHostname (both are
+  // "public hostnames" a student can create), so both tables count against it.
+  const [dnsCount, tunnelCount] = await Promise.all([
+    prisma.dnsRecord.count({ where: { studentId: auth.student.id } }),
+    prisma.tunnelHostname.count({ where: { studentId: auth.student.id } }),
+  ]);
+  if (dnsCount + tunnelCount >= auth.student.recordLimit) {
     throw recordLimitExceeded(auth.student.recordLimit);
   }
 
   // Check DNS conflicts (optimistic, before CF call)
   await checkConflicts(auth.student.id, fqdn, validType);
+
+  // A fqdn can only ever be one DnsRecord OR one TunnelHostname, never both
+  // (mirrors the real DNS rule that a name with a CNAME can carry no other
+  // record) — see src/routes/student.tunnels.ts for the other side of this.
+  const tunnelConflict = await prisma.tunnelHostname.findUnique({ where: { fqdn } });
+  if (tunnelConflict) {
+    throw invalidRequest(`The name "${fqdn}" is used by a Tunnel hostname and cannot also hold a manual DNS record.`);
+  }
 
   // Create in Cloudflare first (cannot be done inside a DB transaction)
   const cfRecord = await createDnsRecord({ name: fqdn, type: validType, content, ttl, proxied });
@@ -185,10 +198,19 @@ app.post("/", async (c) => {
         }
       }
 
-      const freshCount = await tx.dnsRecord.count({ where: { studentId: auth.student.id } });
-      if (freshCount >= auth.student.recordLimit) {
+      const [freshDnsCount, freshTunnelCount] = await Promise.all([
+        tx.dnsRecord.count({ where: { studentId: auth.student.id } }),
+        tx.tunnelHostname.count({ where: { studentId: auth.student.id } }),
+      ]);
+      if (freshDnsCount + freshTunnelCount >= auth.student.recordLimit) {
         throw recordLimitExceeded(auth.student.recordLimit);
       }
+
+      const freshTunnelConflict = await tx.tunnelHostname.findUnique({ where: { fqdn } });
+      if (freshTunnelConflict) {
+        throw invalidRequest(`The name "${fqdn}" is used by a Tunnel hostname and cannot also hold a manual DNS record.`);
+      }
+
       return tx.dnsRecord.create({
         data: {
           studentId: auth.student.id,
@@ -263,9 +285,16 @@ app.patch("/:id", async (c) => {
     newTtl = validateTtl(update.ttl);
   }
 
-  // Check conflicts only if name changed
+  // Check conflicts only if name changed — both DnsRecord-vs-DnsRecord
+  // (checkConflicts) and the cross-resource-type exclusivity with
+  // TunnelHostname that POST /v1/records already enforces at creation time.
   if (newFqdn !== record.fqdn) {
     await checkConflicts(auth.student.id, newFqdn, record.type, record.id);
+
+    const tunnelConflict = await prisma.tunnelHostname.findUnique({ where: { fqdn: newFqdn } });
+    if (tunnelConflict) {
+      throw invalidRequest(`The name "${newFqdn}" is used by a Tunnel hostname and cannot also hold a manual DNS record.`);
+    }
   }
 
   const cfPatch: Record<string, unknown> = {};

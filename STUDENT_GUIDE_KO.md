@@ -1,6 +1,6 @@
 # DNS 셀프서비스 API — 참가생 사용 가이드
 
-> 이 API를 사용하면 Cloudflare에 직접 접속하지 않고도 여러분의 서브도메인 아래에 DNS 레코드를 자유롭게 만들고, 수정하고, 삭제할 수 있습니다. 또한, 추가 서브도메인을 직접 신청하고 반납할 수 있습니다.
+> 이 API를 사용하면 Cloudflare에 직접 접속하지 않고도 여러분의 서브도메인 아래에 DNS 레코드를 자유롭게 만들고, 수정하고, 삭제할 수 있습니다. 또한, 추가 서브도메인을 직접 신청하고 반납할 수 있으며, VM에서 돌아가는 로컬 서버를 **터널(Tunnel)** 기능으로 외부에 공개할 수 있습니다.
 
 ---
 
@@ -20,12 +20,22 @@
    - 6-3. [레코드 생성](#6-3-레코드-생성)
    - 6-4. [레코드 수정](#6-4-레코드-수정)
    - 6-5. [레코드 삭제](#6-5-레코드-삭제)
-7. [레코드 타입 설명](#7-레코드-타입-설명)
-8. [Cloudflare Free Tier 제약](#8-cloudflare-free-tier-제약)
-9. [오류 코드 전체 목록](#9-오류-코드-전체-목록)
-10. [요청 제한 (Rate Limit)](#10-요청-제한-rate-limit)
-11. [실전 예시 코드](#11-실전-예시-코드)
-12. [자주 묻는 질문 (FAQ)](#12-자주-묻는-질문-faq)
+7. [터널(Tunnel)로 로컬 서버 공개하기](#7-터널tunnel로-로컬-서버-공개하기)
+   - 7-1. [터널이 뭔가요?](#7-1-터널이-뭔가요)
+   - 7-2. [터널 만들고 cloudflared 설치하기](#7-2-터널-만들고-cloudflared-설치하기)
+   - 7-3. [내 터널 상태 확인](#7-3-내-터널-상태-확인)
+   - 7-4. [설치 명령어 다시 받기](#7-4-설치-명령어-다시-받기)
+   - 7-5. [호스트네임(포트) 추가](#7-5-호스트네임포트-추가)
+   - 7-6. [호스트네임 삭제](#7-6-호스트네임-삭제)
+   - 7-7. [포트/이름 제약](#7-7-포트이름-제약)
+   - 7-8. [지원하는 통신 프로토콜 (자세히)](#7-8-지원하는-통신-프로토콜-자세히)
+   - 7-9. [ngrok 등 다른 터널 서비스와의 차이](#7-9-ngrok-등-다른-터널-서비스와의-차이)
+8. [레코드 타입 설명](#8-레코드-타입-설명)
+9. [Cloudflare Free Tier 제약](#9-cloudflare-free-tier-제약)
+10. [오류 코드 전체 목록](#10-오류-코드-전체-목록)
+11. [요청 제한 (Rate Limit)](#11-요청-제한-rate-limit)
+12. [실전 예시 코드](#12-실전-예시-코드)
+13. [자주 묻는 질문 (FAQ)](#13-자주-묻는-질문-faq)
 
 ---
 
@@ -64,6 +74,9 @@ https://dns.madcamp-kaist.org
 | DNS 레코드 생성 | `https://dns.madcamp-kaist.org/v1/records` |
 | DNS 레코드 수정 | `https://dns.madcamp-kaist.org/v1/records/:id` |
 | DNS 레코드 삭제 | `https://dns.madcamp-kaist.org/v1/records/:id` |
+| 터널 생성/조회 | `https://dns.madcamp-kaist.org/v1/tunnels` |
+| 터널 호스트네임 추가 | `https://dns.madcamp-kaist.org/v1/tunnels/hostnames` |
+| 터널 호스트네임 삭제 | `https://dns.madcamp-kaist.org/v1/tunnels/hostnames/:id` |
 
 ```bash
 # 터미널 환경변수로 설정해두면 편합니다
@@ -467,7 +480,281 @@ curl -s -X DELETE \
 
 ---
 
-## 7. 레코드 타입 설명
+## 7. 터널(Tunnel)로 로컬 서버 공개하기
+
+### 7-1. 터널이 뭔가요?
+
+캠프 VM은 **KCLOUD 내부망**에 있어서, VPN에 연결되지 않은 일반 인터넷 방문자는 애초에 VM에 접근할 수 없습니다 (VPN·방화벽 관련 자세한 내용은 별도 KCLOUD 가이드를 참고하세요). 그래서 지금까지의 A 레코드처럼 "내 VM의 IP"를 직접 DNS에 등록하는 방식으로는, 인터넷에 있는 아무나가 여러분의 프로젝트에 접속하게 만들 수 없습니다.
+
+터널은 이 문제를 해결합니다. VM 안에서 `cloudflared`라는 프로그램을 한 번 설치해서 실행하면, 그 프로그램이 Cloudflare로 **아웃바운드 연결을 직접** 엽니다. 이후 외부에서 `team01.madcamp-kaist.org` 같은 주소로 들어오는 요청은 Cloudflare를 거쳐 이 연결을 타고 여러분의 VM 안 로컬 포트(예: `localhost:3000`)로 전달됩니다.
+
+```
+브라우저 → Cloudflare → (VM이 미리 열어둔 아웃바운드 연결) → VM의 localhost:포트
+```
+
+정리하면:
+
+| 방식 | 언제 사용 | 특징 |
+|---|---|---|
+| DNS 레코드 (A/AAAA/CNAME/TXT) | 외부에서 접속 가능한 고정 IP나 서비스가 있을 때 | 직접 IP/호스트를 지정 |
+| **터널(Tunnel)** | VM에서 돌아가는 로컬 서버를 그냥 공개하고 싶을 때 | IP 필요 없음, `cloudflared` 설치만 하면 됨 |
+
+**같은 이름(fqdn)에는 DNS 레코드와 터널 호스트네임을 동시에 만들 수 없습니다** — 서브도메인 하나(예: `team01`) 아래에서도 `www.team01`은 일반 A 레코드로, `api.team01`은 터널로, 이런 식으로 **이름별로는 자유롭게 섞어 쓸 수 있습니다.**
+
+> **레코드 한도 공유**: `recordLimit`은 DNS 레코드와 터널 호스트네임을 **합산**한 개수입니다. `GET /v1/me`로 확인하는 한도 안에서 둘을 자유롭게 나눠 쓰면 됩니다.
+
+---
+
+### 7-2. 터널 만들고 cloudflared 설치하기
+
+```
+POST /v1/tunnels
+```
+
+내 계정에 터널이 없으면 새로 만들고, 있으면 기존 터널 정보를 반환합니다. **설치 명령어(install command)는 이 요청에서만 보여줍니다** — 아무 때나 다시 보고 싶으면 [7-4](#7-4-설치-명령어-다시-받기)를 사용하세요.
+
+```bash
+curl -s -X POST \
+  -H "Authorization: Bearer $API_KEY" \
+  $BASE_URL/v1/tunnels
+```
+
+#### 응답 예시 (200 OK)
+
+```json
+{
+  "tunnel": { "id": "tun_abc123", "name": "alice-tunnel" },
+  "installCommand": "sudo cloudflared service install eyJhIjoiYWJjMTIz..."
+}
+```
+
+**VM에서 딱 한 번만** 아래 명령어를 실행하세요 (`installCommand` 값 그대로 복사):
+
+```bash
+sudo cloudflared service install eyJhIjoiYWJjMTIz...
+```
+
+설치가 끝나면 `cloudflared`가 백그라운드 서비스로 등록되어 VM이 재부팅돼도 자동으로 다시 연결됩니다. **VM을 새로 만들거나 밀었다면** 이 명령어를 다시 실행해야 하며, 그럴 땐 [7-4](#7-4-설치-명령어-다시-받기)로 명령어만 다시 받으면 됩니다 (터널을 새로 만들 필요 없음).
+
+---
+
+### 7-3. 내 터널 상태 확인
+
+```
+GET /v1/tunnels
+```
+
+터널 존재 여부와 현재 등록된 호스트네임 목록을 보여줍니다. **보안을 위해 설치 명령어는 여기 포함되지 않습니다.**
+
+```bash
+curl -s -H "Authorization: Bearer $API_KEY" $BASE_URL/v1/tunnels
+```
+
+#### 응답 예시 (터널이 있는 경우)
+
+```json
+{
+  "tunnel": {
+    "exists": true,
+    "id": "tun_abc123",
+    "name": "alice-tunnel",
+    "hostnames": [
+      {
+        "id": "th_xyz789",
+        "name": "@",
+        "fqdn": "alice.madcamp-kaist.org",
+        "localPort": 3000,
+        "protocol": "http",
+        "createdAt": "2026-07-06T09:00:00.000Z",
+        "updatedAt": "2026-07-06T09:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+#### 응답 예시 (아직 터널을 만들지 않은 경우)
+
+```json
+{ "tunnel": { "exists": false } }
+```
+
+---
+
+### 7-4. 설치 명령어 다시 받기
+
+```
+GET /v1/tunnels/token
+```
+
+VM을 새로 만들었거나 `cloudflared`를 다시 설치해야 할 때, 기존 터널을 그대로 유지한 채 설치 명령어만 다시 받습니다.
+
+```bash
+curl -s -H "Authorization: Bearer $API_KEY" $BASE_URL/v1/tunnels/token
+```
+
+#### 응답 예시 (200 OK)
+
+```json
+{ "installCommand": "sudo cloudflared service install eyJhIjoiYWJjMTIz..." }
+```
+
+> 터널을 아직 만들지 않았다면 404가 반환됩니다 — 먼저 [`POST /v1/tunnels`](#7-2-터널-만들고-cloudflared-설치하기)를 호출하세요.
+
+---
+
+### 7-5. 호스트네임(포트) 추가
+
+```
+POST /v1/tunnels/hostnames
+Content-Type: application/json
+```
+
+VM의 로컬 포트 하나를 외부에서 접속 가능한 이름 하나에 연결합니다. 터널이 없으면 자동으로 먼저 생성됩니다.
+
+#### 요청 필드
+
+| 필드 | 타입 | 필수 | 기본값 | 설명 |
+|---|---|---|---|---|
+| `subdomain` | string | 필수 | | 이 호스트네임을 걸어둘 서브도메인 (기본 서브도메인 또는 소유한 추가 서브도메인) |
+| `name` | string | 선택 | `"@"` | 서브도메인 기준 상대 경로 (DNS 레코드의 `name`과 동일한 규칙) |
+| `localPort` | number | 필수 | | VM에서 실제로 서비스가 떠 있는 포트 |
+
+#### 서브도메인 자체를 공개 (name 생략 → `@`)
+
+```bash
+curl -s -X POST \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"subdomain": "alice", "localPort": 3000}' \
+  $BASE_URL/v1/tunnels/hostnames
+# → alice.madcamp-kaist.org 가 VM의 localhost:3000 으로 연결됨
+```
+
+#### 이름을 지정해서 여러 개 만들기 (프론트/백엔드 등 여러 서비스)
+
+```bash
+curl -s -X POST \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"subdomain": "alice", "name": "api", "localPort": 8080}' \
+  $BASE_URL/v1/tunnels/hostnames
+# → api.alice.madcamp-kaist.org 가 VM의 localhost:8080 으로 연결됨
+```
+
+같은 서브도메인 아래에 `name`만 다르게 해서 여러 개의 호스트네임을 만들 수 있습니다 — 예를 들어 프론트엔드는 `@`(포트 3000), 백엔드는 `api`(포트 8080)로 각각 등록해두면 하나의 터널(하나의 `cloudflared` 설치)로 둘 다 서비스할 수 있습니다.
+
+#### 응답 예시 (201 Created)
+
+```json
+{
+  "hostname": {
+    "id": "th_xyz789",
+    "name": "@",
+    "fqdn": "alice.madcamp-kaist.org",
+    "localPort": 3000,
+    "protocol": "http",
+    "createdAt": "2026-07-06T09:00:00.000Z",
+    "updatedAt": "2026-07-06T09:00:00.000Z"
+  }
+}
+```
+
+만든 직후 바로 안 될 수 있습니다 — VM에서 `cloudflared` 서비스가 정상적으로 연결되어 있는지, 그리고 해당 포트에서 서버가 실제로 떠 있는지 확인하세요.
+
+---
+
+### 7-6. 호스트네임 삭제
+
+```
+DELETE /v1/tunnels/hostnames/:id
+```
+
+```bash
+curl -s -X DELETE \
+  -H "Authorization: Bearer $API_KEY" \
+  $BASE_URL/v1/tunnels/hostnames/th_xyz789
+```
+
+#### 응답 예시 (200 OK)
+
+```json
+{ "success": true, "cloudflareCleanup": { "ingressUpdated": true, "dnsRecordDeleted": true } }
+```
+
+`cloudflareCleanup`은 참고용 정보입니다 — `false`가 보이더라도 호스트네임 자체는 이미 삭제된 상태이니 다시 삭제를 시도할 필요는 없습니다. 계속 `false`가 보이면 운영진에게 문의하세요.
+
+> **서브도메인 반납 시 주의**: 해당 서브도메인 아래 터널 호스트네임이 남아있으면 `DELETE /v1/subdomains/:id` 반납이 거부됩니다. DNS 레코드와 마찬가지로 먼저 지워야 합니다.
+
+---
+
+### 7-7. 포트/이름 제약
+
+| 항목 | 규칙 |
+|---|---|
+| `localPort` 범위 | **1024 ~ 65535** (그 이하 포트는 사용 불가) |
+| 차단되는 포트 | 22(SSH), 3306(MySQL), 5432(PostgreSQL), 6379(Redis), 27017(MongoDB), 9200(Elasticsearch) 등 인프라/DB용 포트 |
+| 연결 대상 | 항상 VM의 `localhost`(127.0.0.1)만 가능 — 다른 IP나 다른 VM은 지정 불가 |
+| 프로토콜 | 현재는 `http`만 지원 |
+| `name` 규칙 | DNS 레코드의 [이름(name) 규칙](#이름name-규칙)과 동일 (예약어 불가, 최대 3단계 등) |
+
+> 포트 제한은 실수로 DB나 SSH 같은 서비스를 그대로 노출하는 사고를 막기 위한 안전장치입니다. 위 목록에 없는 포트라도 민감한 서비스(관리자 페이지 등)를 올릴 때는 자체적으로 인증을 꼭 걸어두세요 — 터널로 연결하는 순간 그 포트는 인터넷에 공개된다는 뜻입니다.
+
+---
+
+### 7-8. 지원하는 통신 프로토콜 (자세히)
+
+이 터널 기능은 Cloudflare Tunnel의 **HTTP 기반 ingress**만 사용하도록 만들어져 있습니다 (내부적으로 항상 `http://127.0.0.1:포트` 형태로 연결합니다). Cloudflare Tunnel 자체는 순수 TCP·SSH·RDP 등 다른 ingress 방식도 지원하지만, **이 API는 그중 HTTP 방식 하나만 사용합니다.** 그래서 어떤 통신이 되고 안 되는지는 "HTTP(S)로 시작하는 연결인가"가 기준입니다.
+
+**되는 것 (TCP 기반, HTTP로 시작하는 통신)**
+
+| 프로토콜 / 기술 | 가능 여부 | 설명 |
+|---|---|---|
+| HTTP / HTTPS (REST API 등) | ✅ | 기본으로 지원 |
+| WebSocket (`ws://`, `wss://`) | ✅ | HTTP Upgrade로 시작하는 연결이라 프록시를 그대로 통과합니다 |
+| Socket.IO | ✅ | 내부적으로 WebSocket 또는 HTTP 롱폴링을 쓰는데 둘 다 통과됩니다 |
+| Server-Sent Events (SSE) | ✅ | 오래 유지되는 HTTP 응답 스트림이라 문제 없습니다 |
+| WebRTC **시그널링**(연결 협상 단계) | ✅ | 보통 HTTP나 WebSocket으로 이루어지므로 통과됩니다 |
+
+**안 되는 것**
+
+| 프로토콜 / 기술 | 가능 여부 | 이유 |
+|---|---|---|
+| 순수 TCP (직접 만든 바이너리 프로토콜, DB 와이어 프로토콜 등) | ❌ | Cloudflare Tunnel 자체는 TCP ingress도 지원하지만, 이 API는 HTTP ingress만 만들도록 되어 있어 지금은 노출할 수 없습니다 |
+| **UDP 기반 모든 통신** | ❌ | Cloudflare Tunnel은 애초에 UDP를 터널링하지 않습니다. (방문자↔Cloudflare 구간에서 QUIC/HTTP3를 쓰는 것과는 별개 얘기이며, VM 쪽 서비스에는 영향이 없습니다) |
+| WebRTC **미디어/데이터 채널** (영상·음성·화면공유·RTCDataChannel) | ❌ | ICE/DTLS-SRTP 등 UDP 기반이고, 애초에 이런 트래픽은 터널이 아니라 P2P나 별도 TURN 서버를 통해 흐릅니다 — 시그널링이 이 터널로 잘 되더라도 미디어 자체는 이 경로를 타지 않습니다 |
+| gRPC (HTTP/2) | ⚠️ 확인 필요 | 이 API가 origin과의 HTTP/2 전용 설정을 별도로 켜두지 않으므로 정상 동작을 보장하지 않습니다 |
+
+> 정리하면: **평범한 웹 서버 / REST API / 실시간 채팅(WebSocket) 서비스는 문제없이 됩니다.** 게임 서버, 화상회의 미디어 서버, 커스텀 TCP·UDP 프로토콜을 쓰는 서비스는 이 터널로는 외부에 공개할 수 없습니다.
+
+---
+
+### 7-9. ngrok 등 다른 터널 서비스와의 차이
+
+6장에서 다뤘듯, 원하는 외부 호스트를 가리키는 CNAME 레코드는 지금도 자유롭게 만들 수 있습니다. 그래서 "ngrok 같은 서비스로 터널을 열고, 그 주소를 CNAME으로 연결"하는 것도 기술적으로는 가능합니다. 하지만 이 API의 터널 기능과는 중요한 차이가 있습니다.
+
+| 항목 | 이 API의 터널(Tunnel) 기능 | ngrok 등 + 수동 CNAME |
+|---|---|---|
+| 별도 가입 | 불필요 (같은 API 키 사용) | ngrok 등 제3자 서비스에 별도 가입 필요 |
+| DNS 레코드 생성 | 자동 (CNAME + ingress 설정을 API가 관리) | 직접 CNAME 레코드를 만들어야 함 |
+| HTTPS 인증서 | Cloudflare가 `team01.madcamp-kaist.org`용 정상 인증서를 발급 | 문제가 생기기 쉬움 — 아래 설명 참고 |
+| 포트 / 보안 가드레일 | 있음 (1024번 이상만, DB/SSH 포트 차단, `localhost`만 허용) | 없음 — ngrok 쪽에서 실제로 뭘 노출하든 우리 쪽에서 통제 불가 |
+| 운영진 가시성 | `/admin/tunnels`로 전체 조회·강제 삭제 가능 | 우리 서버 입장에선 그냥 CNAME 레코드 하나 — 실제로 뭘 서비스하는지 알 수 없음 |
+| 비용 | Cloudflare Tunnel 자체는 무료 | 무료 티어에 세션 시간·대역폭 제한이 있는 경우가 많음 |
+
+**실제로 가장 자주 걸리는 문제 — 인증서/Host 불일치**: ngrok 같은 서비스의 무료 플랜은 보통 원하는 커스텀 도메인에 자체 인증서를 발급해주지 않습니다. `team01.madcamp-kaist.org`를 ngrok 주소로 CNAME만 걸어두면:
+- Cloudflare 프록시(`proxied: true`)를 켜지 않은 경우, 브라우저가 `team01.madcamp-kaist.org`로 접속했을 때 ngrok 서버가 내려주는 인증서는 ngrok 자신의 도메인용이라 **인증서 불일치 경고**가 뜹니다.
+- Cloudflare 프록시를 켜면 인증서 문제는 Cloudflare가 대신 해결해주지만, 이번엔 ngrok 무료 플랜 쪽에서 **자신의 도메인이 아닌 Host 헤더로 오는 요청을 거부**하는 경우가 흔해서 아예 연결이 안 될 수 있습니다. (ngrok 유료 커스텀 도메인 기능을 쓰면 해결되지만, 그럼 굳이 CNAME으로 우회할 이유가 없어집니다.)
+
+**권장 사항**
+
+- **VM에서 직접 띄운 서버를 외부에 공개하고 싶다면 → 이 API의 터널 기능을 쓰세요.** 위 표의 문제들이 애초에 발생하지 않습니다.
+- **Vercel / Netlify / GitHub Pages처럼 이미 공인 도메인으로 서비스되는 곳에 연결하고 싶다면 → 기존 CNAME 레코드(6장)를 그대로 쓰세요.** 이런 서비스들은 보통 커스텀 도메인 + 인증서 발급을 정식으로 지원합니다.
+- ngrok 등 제3자 터널 서비스는 **이 API의 터널 기능이 지원하지 않는 상황(순수 TCP, UDP 등)이거나 특별한 사정이 있을 때만** 최후의 수단으로 고려하세요. 그마저도 인증서·Host 헤더 문제는 직접 해결해야 합니다.
+
+---
+
+## 8. 레코드 타입 설명
 
 ### A 레코드 — IPv4 주소
 
@@ -499,7 +786,7 @@ verify.alice.example.com → "google-site-verification=abc..."
 
 ---
 
-## 8. Cloudflare Free Tier 제약
+## 9. Cloudflare Free Tier 제약
 
 이 서비스는 Cloudflare 무료 플랜을 사용합니다. 다음 제약을 알고 계세요:
 
@@ -529,7 +816,7 @@ Cloudflare 리버스 프록시를 통해 트래픽이 전달됩니다:
 
 ---
 
-## 9. 오류 코드 전체 목록
+## 10. 오류 코드 전체 목록
 
 오류 응답 형식:
 
@@ -563,7 +850,7 @@ Cloudflare 리버스 프록시를 통해 트래픽이 전달됩니다:
 
 ---
 
-## 10. 요청 제한 (Rate Limit)
+## 11. 요청 제한 (Rate Limit)
 
 | 구분 | 한도 | 기간 |
 |---|---|---|
@@ -584,7 +871,7 @@ Cloudflare 리버스 프록시를 통해 트래픽이 전달됩니다:
 
 ---
 
-## 11. 실전 사용법 (curl / Postman)
+## 12. 실전 사용법 (curl / Postman)
 
 ### 환경변수 설정 (터미널)
 
@@ -706,7 +993,7 @@ curl -s -X DELETE \
 
 ---
 
-## 12. 자주 묻는 질문 (FAQ)
+## 13. 자주 묻는 질문 (FAQ)
 
 ### Q. 추가 서브도메인이란 무엇인가요?
 
@@ -716,7 +1003,24 @@ curl -s -X DELETE \
 
 ### Q. 서브도메인 반납 시 DNS 레코드는 어떻게 되나요?
 
-반납 전에 **직접 DNS 레코드를 삭제**해야 합니다. 레코드가 남아있으면 반납이 거부됩니다. 레코드를 삭제하면 Cloudflare에서도 즉시 제거됩니다.
+반납 전에 **직접 DNS 레코드를 삭제**해야 합니다. 레코드가 남아있으면 반납이 거부됩니다. 레코드를 삭제하면 Cloudflare에서도 즉시 제거됩니다. **터널 호스트네임이 남아있어도 마찬가지로 반납이 거부됩니다** — 먼저 지워야 합니다.
+
+---
+
+### Q. 터널을 만들었는데 브라우저로 접속이 안 돼요.
+
+다음 순서로 확인하세요:
+
+1. VM에서 `sudo systemctl status cloudflared` (또는 `cloudflared` 서비스 상태)로 정상 연결됐는지 확인
+2. `localPort`로 지정한 포트에서 실제로 서버가 떠 있는지 (`curl localhost:포트`로 VM 안에서 직접 확인)
+3. `GET /v1/tunnels`로 호스트네임이 정상 등록되어 있는지 확인
+4. VM을 새로 만들었다면 `cloudflared`를 다시 설치해야 합니다 — [7-4](#7-4-설치-명령어-다시-받기)로 설치 명령어를 다시 받으세요
+
+---
+
+### Q. 터널로 화상채팅(WebRTC)이나 게임 서버를 공개할 수 있나요?
+
+부분적으로만 가능합니다. WebRTC의 **연결 협상(시그널링)** 단계는 보통 HTTP/WebSocket이라 터널을 통과하지만, 실제 **영상·음성 데이터**는 UDP 기반이라 이 터널로는 흐르지 않습니다. 커스텀 TCP/UDP 프로토콜을 쓰는 게임 서버도 마찬가지로 이 터널로는 외부에 공개할 수 없습니다. 자세한 내용은 [7-8](#7-8-지원하는-통신-프로토콜-자세히)을 참고하세요.
 
 ---
 

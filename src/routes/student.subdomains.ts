@@ -165,6 +165,19 @@ app.delete("/:id", async (c) => {
       );
     }
 
+    // Symmetric check for Tunnel hostnames — see src/routes/student.tunnels.ts.
+    // subdomain is an indexed column on TunnelHostname, so this is a cheap
+    // equality lookup rather than string matching.
+    const tunnelHostnameCount = await tx.tunnelHostname.count({
+      where: { studentId: auth.student.id, subdomain: owned.subdomain },
+    });
+    if (tunnelHostnameCount > 0) {
+      throw invalidRequest(
+        `Cannot release: ${tunnelHostnameCount} Tunnel hostname(s) still exist under ${owned.subdomain}.${rootDomain}. Delete them first.`,
+        { tunnelHostnameCount }
+      );
+    }
+
     await tx.ownedSubdomain.delete({ where: { id: owned.id } });
     return owned;
   });

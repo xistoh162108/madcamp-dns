@@ -12,9 +12,11 @@ import adminStudentsRouter from "./routes/admin.students.js";
 import adminTestKeysRouter from "./routes/admin.test-keys.js";
 import adminRecordsRouter from "./routes/admin.records.js";
 import adminAuditRouter from "./routes/admin.audit.js";
+import adminTunnelsRouter from "./routes/admin.tunnels.js";
 import studentMeRouter from "./routes/student.me.js";
 import studentRecordsRouter from "./routes/student.records.js";
 import studentSubdomainsRouter from "./routes/student.subdomains.js";
+import studentTunnelsRouter from "./routes/student.tunnels.js";
 
 // ── Startup: validate required env vars ──────────────────────────────────────
 const REQUIRED_ENV = [
@@ -147,6 +149,7 @@ app.route("/admin/students", adminStudentsRouter);
 app.route("/admin/test-keys", adminTestKeysRouter);
 app.route("/admin/records", adminRecordsRouter);
 app.route("/admin/audit-logs", adminAuditRouter);
+app.route("/admin/tunnels", adminTunnelsRouter);
 
 // ── Student routes ───────────────────────────────────────────────────────────
 // Coarse IP-keyed rate limit BEFORE any credential is checked — requireStudent()
@@ -161,6 +164,7 @@ app.use("/v1/*", async (c, next) => {
 app.route("/v1/me", studentMeRouter);
 app.route("/v1/records", studentRecordsRouter);
 app.route("/v1/subdomains", studentSubdomainsRouter);
+app.route("/v1/tunnels", studentTunnelsRouter);
 
 // ── Background: prune expired rate-limit rows every 5 minutes ────────────────
 setInterval(() => {

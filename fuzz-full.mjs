@@ -32,6 +32,8 @@ const {
 } = await import("./dist/lib/validate-dns.js");
 
 const { getClientIp } = await import("./dist/lib/audit.js");
+const { validateLocalPort } = await import("./dist/lib/validate-tunnel.js");
+const { buildIngressRules } = await import("./dist/lib/cloudflare-tunnel.js");
 
 const {
   AppError,
@@ -834,6 +836,78 @@ ok("G5: X-Forwarded-For alone is not trusted (falls back to socket)",
 
 if (savedTrustCf === undefined) delete process.env.TRUST_CF_CONNECTING_IP;
 else process.env.TRUST_CF_CONNECTING_IP = savedTrustCf;
+
+// ============================================================================
+// SECTION H — Cloudflare Tunnel: validateLocalPort + buildIngressRules
+// ============================================================================
+
+console.log("── H: Tunnel local-port validation + ingress rules ──────────────");
+
+// H1. Valid unprivileged, non-blocked ports — must pass
+const validPorts = [1024, 3000, 5000, 8000, 8080, 65535, 4173];
+for (const p of validPorts) {
+  doesNotThrow(`H1: valid port ${p}`, () => validateLocalPort(p));
+}
+
+// H2. Each individually blocked port — must throw. Ports below 1024 (22, 25,
+// 111) are rejected by the privileged-port check first, not the blocklist —
+// still correctly rejected, just with a different message.
+const blockedPortsUnprivileged = [2375, 2376, 2379, 2380, 3306, 3389, 5432, 5601, 5900, 6379, 9090, 9200, 9300, 11211, 15672];
+for (const p of blockedPortsUnprivileged) {
+  throws(`H2: blocked port ${p}`, () => validateLocalPort(p), "reserved");
+}
+const blockedPortsPrivileged = [22, 25, 111];
+for (const p of blockedPortsPrivileged) {
+  throws(`H2: privileged+blocked port ${p} rejected`, () => validateLocalPort(p), "1024 or higher");
+}
+
+// H3. Boundary values around the privileged-port cutoff and max port
+doesNotThrow("H3: port 1024 (min unprivileged) allowed", () => validateLocalPort(1024));
+throws("H3: port 1023 (privileged) rejected", () => validateLocalPort(1023), "1024 or higher");
+doesNotThrow("H3: port 65535 (max) allowed", () => validateLocalPort(65535));
+throws("H3: port 65536 (over max) rejected", () => validateLocalPort(65536), "");
+throws("H3: port 0 rejected", () => validateLocalPort(0), "");
+
+// H4. Invalid types — must throw
+for (const bad of [-1, 3.5, NaN, "abc", "", null, undefined, {}]) {
+  throws(`H4: invalid port ${JSON.stringify(bad)} rejected`, () => validateLocalPort(bad), "");
+}
+
+// H5. String-coercible valid ports (Zod may pass numeric strings through)
+doesNotThrow('H5: string port "3000" coerces and passes', () => validateLocalPort("3000"));
+
+// H6. buildIngressRules — catch-all is always last and exactly once
+{
+  const rules = buildIngressRules([{ hostname: "a.example.com", localPort: 3000 }, { hostname: "b.example.com", localPort: 8080 }]);
+  ok("H6: catch-all is the last rule", rules[rules.length - 1].service === "http_status:404");
+  ok("H6: catch-all has no hostname field", rules[rules.length - 1].hostname === undefined);
+  ok("H6: exactly one catch-all rule", rules.filter((r) => r.service === "http_status:404").length === 1);
+  ok("H6: exactly 3 rules for 2 hostnames (2 + catch-all)", rules.length === 3);
+  ok("H6: hostname rules point at loopback", rules[0].service === "http://127.0.0.1:3000" && rules[1].service === "http://127.0.0.1:8080");
+}
+
+// H7. buildIngressRules — empty hostname list still has the catch-all
+{
+  const rules = buildIngressRules([]);
+  ok("H7: empty list still produces exactly the catch-all", rules.length === 1 && rules[0].service === "http_status:404");
+}
+
+// H8. buildIngressRules — add-then-remove produces the correct remaining list
+// (simulates the "full overwrite, not incremental" recompute pattern used by
+// putIngressConfig on every hostname add/remove).
+{
+  const all = [
+    { hostname: "a.example.com", localPort: 3000 },
+    { hostname: "b.example.com", localPort: 8080 },
+    { hostname: "c.example.com", localPort: 4000 },
+  ];
+  const afterRemovingB = all.filter((h) => h.hostname !== "b.example.com");
+  const rules = buildIngressRules(afterRemovingB);
+  ok("H8: removed hostname is absent", !rules.some((r) => r.hostname === "b.example.com"));
+  ok("H8: remaining hostnames are present", rules.some((r) => r.hostname === "a.example.com") && rules.some((r) => r.hostname === "c.example.com"));
+  ok("H8: catch-all still last after remove", rules[rules.length - 1].service === "http_status:404");
+  ok("H8: exactly 3 rules (2 hostnames + catch-all)", rules.length === 3);
+}
 
 // ============================================================================
 // Summary
