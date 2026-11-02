@@ -75,10 +75,10 @@
 
   <h2 id="sec-accounts">계정 목록</h2>
   <p><input id="filter" size="24" placeholder="검색 (ID, 이름, 이메일)"> <span class="small" id="account-count"></span></p>
-  <table>
+  <div class="tw"><table>
     <thead><tr><th>ID</th><th>이름 / 이메일</th><th>레코드</th><th>웹 로그인</th><th>상태</th><th class="act"></th></tr></thead>
     <tbody id="teams"></tbody>
-  </table>
+  </table></div>
   <p id="list-msg"></p>
 
   <div id="detail" class="hidden">
@@ -88,20 +88,20 @@
       <button type="submit">이름 저장</button>
     </form>
     <h3>API 키</h3>
-    <table>
+    <div class="tw"><table>
       <thead><tr><th>접두어</th><th>라벨</th><th>상태</th><th>마지막 사용</th><th>종류</th><th>생성</th><th class="act"></th></tr></thead>
       <tbody id="keys"></tbody>
-    </table>
+    </table></div>
     <form id="key-form">
       라벨 <input name="label" size="16" maxlength="64" placeholder="lab-machine">
       <button type="submit">키 발급</button>
       <button type="button" id="rotate">전체 교체 (기존 키 모두 폐기)</button>
     </form>
     <h3>이 계정의 레코드</h3>
-    <table>
-      <thead><tr><th>주소</th><th>타입</th><th>값</th><th>proxy</th><th>Cloudflare ID</th><th class="act"></th></tr></thead>
+    <div class="tw"><table>
+      <thead><tr><th>Name (주소)</th><th>Type</th><th>Content (값)</th><th>Proxy</th><th>Cloudflare ID</th><th class="act"></th></tr></thead>
       <tbody id="detail-records"></tbody>
-    </table>
+    </table></div>
     <p><button type="button" id="detail-audit">이 계정의 감사 로그 보기</button></p>
     <p id="detail-msg"></p>
   </div>
@@ -111,17 +111,17 @@
     계정 <select id="rec-filter"><option value="">전체</option></select>
     <button type="button" id="rec-prev">이전</button> <span id="rec-page" class="small"></span> <button type="button" id="rec-next">다음</button>
   </p>
-  <table>
-    <thead><tr><th>계정</th><th>주소</th><th>타입</th><th>값</th><th>TTL</th><th>proxy</th><th>수정</th><th class="act"></th></tr></thead>
+  <div class="tw"><table>
+    <thead><tr><th>계정</th><th>Name (주소)</th><th>Type</th><th>Content (값)</th><th>TTL</th><th>Proxy</th><th>수정</th><th class="act"></th></tr></thead>
     <tbody id="all-records"></tbody>
-  </table>
+  </table></div>
   <p id="rec-msg"></p>
 
   <h2 id="sec-tunnels">터널</h2>
-  <table>
-    <thead><tr><th>계정</th><th>터널 이름</th><th>주소</th><th>로컬 포트</th><th>프로토콜</th><th class="act"></th></tr></thead>
+  <div class="tw"><table>
+    <thead><tr><th>계정</th><th>터널 이름</th><th>Hostname</th><th>Local port</th><th>Protocol</th><th class="act"></th></tr></thead>
     <tbody id="tunnels"></tbody>
-  </table>
+  </table></div>
   <p class="small" id="tunnel-count"></p>
   <p id="tunnel-msg"></p>
 
@@ -134,10 +134,10 @@
     <button type="submit">조회</button>
   </form>
   <p><button type="button" id="audit-prev">이전</button> <span id="audit-page" class="small"></span> <button type="button" id="audit-next">다음</button></p>
-  <table>
+  <div class="tw"><table>
     <thead><tr><th>시각</th><th>주체</th><th>계정</th><th>작업</th><th>내용</th><th>IP</th></tr></thead>
     <tbody id="audit"></tbody>
-  </table>
+  </table></div>
   <p id="audit-msg"></p>
 </div>
 

@@ -106,12 +106,18 @@ var UI = (function () {
     td.textContent = text;
   }
 
+  // Short values (hostnames, IPs) never wrap; only long ones like TXT may.
+  function valueClass(text) { return String(text || "").length > 64 ? "wrap" : null; }
+
   function show(id, visible) { $(id).classList.toggle("hidden", !visible); }
 
+  // Compact local time: 2026-11-02 13:02
   function date(v) {
     if (!v) return "";
     var d = new Date(v);
-    return isNaN(d) ? "" : d.toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" });
+    if (isNaN(d)) return "";
+    function p(n) { return (n < 10 ? "0" : "") + n; }
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes());
   }
 
   // Replace a <select>'s options while keeping the current choice when possible.
@@ -124,5 +130,5 @@ var UI = (function () {
 
   return { $: $, blockMobile: blockMobile, store: store, read: read, client: client, msg: msg,
            button: button, onSubmit: onSubmit, cell: cell, emptyRow: emptyRow, show: show,
-           date: date, fillSelect: fillSelect };
+           date: date, fillSelect: fillSelect, valueClass: valueClass };
 })();
