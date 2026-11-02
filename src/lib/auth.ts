@@ -57,6 +57,9 @@ export async function requireStudent(c: Context): Promise<StudentContext> {
 
   if (!apiKey) throw unauthorized();
   if (!apiKey.isActive) throw apiKeyRevoked();
+  if (apiKey.expiresAt && apiKey.expiresAt <= new Date()) {
+    throw unauthorized("Session expired. Please log in again.");
+  }
   if (!apiKey.student.isActive) throw studentDisabled();
 
   // Update lastUsedAt without blocking the response

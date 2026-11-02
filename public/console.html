@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>DNS 관리자</title>
+<link rel="stylesheet" href="/ui/style.css">
+<link rel="icon" href="data:,">
+</head>
+<body>
+
+<div id="login-view" class="hidden">
+  <h1>DNS 관리자</h1>
+  <form id="login-form">
+    <p>Admin key<br><input name="key" type="password" size="40" autocomplete="off" required></p>
+    <p><button type="submit">확인</button></p>
+    <p id="login-msg"></p>
+  </form>
+</div>
+
+<div id="app-view" class="hidden">
+  <h1>DNS 관리자 <button type="button" id="logout">나가기</button> <button type="button" id="reload">새로고침</button></h1>
+
+  <h2>계정 추가</h2>
+  <form id="create-form">
+    ID <input name="team" size="12" maxlength="32" placeholder="team1" required>
+    이름 <input name="label" size="10" maxlength="100">
+    비밀번호 <input name="password" size="14" maxlength="256" minlength="10" placeholder="비우면 자동" autocomplete="off">
+    한도 <input name="recordLimit" type="number" min="1" max="100" value="10">
+    <button type="submit">추가</button>
+  </form>
+  <p class="small">ID가 그대로 서브도메인이 됩니다 (team1 → team1.루트도메인). 기존 학생 계정은 아래 목록에서 비밀번호만 발급하면 됩니다.</p>
+  <p id="create-msg"></p>
+
+  <h2>계정 목록</h2>
+  <p><input id="filter" size="24" placeholder="검색 (ID, 이름, 이메일)"></p>
+  <table>
+    <thead><tr><th>ID</th><th>이름 / 이메일</th><th>레코드</th><th>웹 로그인</th><th>상태</th><th class="act"></th></tr></thead>
+    <tbody id="teams"></tbody>
+  </table>
+  <p id="list-msg"></p>
+
+  <h2>터널 목록</h2>
+  <table>
+    <thead><tr><th>계정</th><th>터널 이름</th><th>주소</th><th>로컬 포트</th><th>프로토콜</th></tr></thead>
+    <tbody id="tunnels"></tbody>
+  </table>
+  <p class="small" id="tunnel-count"></p>
+  <p id="tunnel-msg"></p>
+</div>
+
+<noscript><p>JavaScript를 켜야 사용할 수 있습니다.</p></noscript>
+<script src="/ui/common.js"></script>
+<script src="/ui/console.js"></script>
+</body>
+</html>

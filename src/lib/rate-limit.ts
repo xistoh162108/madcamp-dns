@@ -97,3 +97,34 @@ export async function cleanupExpiredRateLimits(): Promise<void> {
     where: { expiresAt: { lte: new Date() } },
   });
 }
+
+// Web-UI password login: tight per-IP bucket to slow down password guessing.
+// Generous enough for a room of teams behind one NAT'd IP logging in at once.
+const LOGIN_TOTAL: RateLimitConfig = { limit: 20, windowSeconds: 60 };
+
+// Per-account bucket so one account can't be brute-forced from many IPs.
+const LOGIN_PER_ACCOUNT: RateLimitConfig = { limit: 10, windowSeconds: 15 * 60 };
+
+export async function checkLoginRateLimit(ip: string): Promise<void> {
+  await checkBucket(`login:${ip}`, "total", LOGIN_TOTAL);
+}
+
+// Failed-login lockout per account. Only failures are counted (recordFailedLogin),
+// so a team whose members log in often is never locked out by successes.
+export async function assertAccountNotLocked(account: string): Promise<void> {
+  // Compared in SQL: expiresAt is written with NOW() by checkBucket, so it must
+  // be read against the DB clock too, not the Node clock.
+  const rows = await prisma.$queryRaw<{ retry: number }[]>`
+    SELECT CEIL(EXTRACT(EPOCH FROM ("expiresAt" - NOW())))::int AS retry
+    FROM "RateLimitLog"
+    WHERE "keyHash" = ${`login-acct:${account}`} AND "bucket" = 'fail'
+      AND "expiresAt" > NOW() AND "count" >= ${LOGIN_PER_ACCOUNT.limit}
+  `;
+  if (rows.length) {
+    throw rateLimited(LOGIN_PER_ACCOUNT.limit, LOGIN_PER_ACCOUNT.windowSeconds, Math.max(1, rows[0].retry));
+  }
+}
+
+export async function recordFailedLogin(account: string): Promise<void> {
+  await checkBucket(`login-acct:${account}`, "fail", { ...LOGIN_PER_ACCOUNT, limit: Number.MAX_SAFE_INTEGER });
+}
