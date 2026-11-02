@@ -34,8 +34,11 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
+    # Bound to localhost: only the nginx on this host should reach the API.
+    # Exposing it publicly would let clients send their own X-Real-IP and
+    # sidestep the per-IP login / admin lockouts.
     ports:
-      - "${PORT:-3000}:3000"
+      - "127.0.0.1:${PORT:-3000}:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -50,6 +53,10 @@ services:
       # return a clear error until configured; every other endpoint is unaffected.
       CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
       CLOUDFLARE_TUNNEL_API_TOKEN: ${CLOUDFLARE_TUNNEL_API_TOKEN:-}
+      # Optional — extra subdomains nobody may claim (comma-separated).
+      RESERVED_SUBDOMAINS: ${RESERVED_SUBDOMAINS:-}
+      # Optional — see DEPLOYMENT.md before enabling.
+      TRUST_CF_CONNECTING_IP: ${TRUST_CF_CONNECTING_IP:-}
     depends_on:
       db:
         condition: service_healthy
