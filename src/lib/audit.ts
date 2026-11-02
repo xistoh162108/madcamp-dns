@@ -21,10 +21,15 @@ export type AuditAction =
   | "TUNNEL_HOSTNAME_CREATED"
   | "TUNNEL_HOSTNAME_DELETED"
   | "ADMIN_TUNNEL_HOSTNAME_DELETED"
-  | "TUNNEL_DELETED";
+  | "TUNNEL_DELETED"
+  | "TEAM_CREATED"
+  | "TEAM_PASSWORD_SET"
+  | "TEAM_LOGIN"
+  | "TEAM_LOGIN_FAILED"
+  | "TEAM_PASSWORD_CHANGED";
 
 export interface AuditParams {
-  actorType: "ADMIN" | "STUDENT";
+  actorType: "ADMIN" | "STUDENT" | "TEAM";
   actorId?: string;
   studentId?: string;
   action: AuditAction;

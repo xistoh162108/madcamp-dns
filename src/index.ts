@@ -17,6 +17,9 @@ import studentMeRouter from "./routes/student.me.js";
 import studentRecordsRouter from "./routes/student.records.js";
 import studentSubdomainsRouter from "./routes/student.subdomains.js";
 import studentTunnelsRouter from "./routes/student.tunnels.js";
+import adminTeamsRouter from "./routes/admin.teams.js";
+import teamAuthRouter from "./routes/team.auth.js";
+import uiRouter from "./routes/ui.js";
 
 // ── Startup: validate required env vars ──────────────────────────────────────
 const REQUIRED_ENV = [
@@ -150,6 +153,7 @@ app.route("/admin/test-keys", adminTestKeysRouter);
 app.route("/admin/records", adminRecordsRouter);
 app.route("/admin/audit-logs", adminAuditRouter);
 app.route("/admin/tunnels", adminTunnelsRouter);
+app.route("/admin/teams", adminTeamsRouter);
 
 // ── Student routes ───────────────────────────────────────────────────────────
 // Coarse IP-keyed rate limit BEFORE any credential is checked — requireStudent()
@@ -165,6 +169,15 @@ app.route("/v1/me", studentMeRouter);
 app.route("/v1/records", studentRecordsRouter);
 app.route("/v1/subdomains", studentSubdomainsRouter);
 app.route("/v1/tunnels", studentTunnelsRouter);
+
+// ── Web UI: team password login + static pages ───────────────────────────────
+// /auth/login mints a short-lived key that the UI uses against /v1/* above.
+app.use("/auth/*", async (c, next) => {
+  await checkPreAuthRateLimit(getClientIp(c));
+  await next();
+});
+app.route("/auth", teamAuthRouter);
+app.route("/", uiRouter);
 
 // ── Background: prune expired rate-limit rows every 5 minutes ────────────────
 setInterval(() => {

@@ -1,0 +1,15 @@
+body { font-family: sans-serif; font-size: 14px; max-width: 1000px; min-width: 860px; margin: 20px auto; padding: 0 16px; }
+h1 { font-size: 18px; }
+h2 { font-size: 15px; margin-top: 28px; }
+table { border-collapse: collapse; width: 100%; table-layout: auto; }
+th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; vertical-align: middle; }
+th { background: #eee; }
+td.wrap { word-break: break-all; }
+td.act, th.act { white-space: nowrap; width: 1%; }
+tr.editing td { background: #fffbe6; }
+input, select, button { font-size: 14px; }
+button:disabled { opacity: .6; }
+.err { color: #b00; white-space: pre-wrap; }
+.ok { color: #070; white-space: pre-wrap; user-select: all; }
+.small { color: #666; font-size: 12px; }
+.hidden { display: none !important; }

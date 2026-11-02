@@ -379,6 +379,18 @@ curl -s -X DELETE http://localhost:3000/v1/records/<record_id> \
 
 ---
 
+## Web UI
+
+Password login on top of the API-key flow, served by the same process. Desktop browsers only.
+
+- `/console` — admin page (uses `ADMIN_API_KEY`): create accounts, issue/reset passwords, limits, suspend, list all tunnels.
+- `/` — student/team page: log in with subdomain or email + password, manage own DNS records, view own tunnel, change password.
+
+Admin endpoints: `GET/POST /admin/teams`, `PATCH /admin/teams/:id`, `POST|DELETE /admin/teams/:id/password` (`:id` = subdomain or email).
+Auth endpoints: `POST /auth/login`, `POST /auth/logout`, `POST /auth/password`.
+
+A login mints a 12-hour key (`sk_web_…`) used against the normal `/v1/*` routes, so ownership checks, quotas and rate limits are shared with API-key users. Details in ADMIN_GUIDE_KO.md.
+
 ## Health Check
 
 ```bash

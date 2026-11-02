@@ -17,6 +17,9 @@ model Student {
   recordLimit Int     @default(10)
   isActive    Boolean @default(true)
 
+  // Optional web-UI login (login ID = subdomain). Null = API-key-only account.
+  passwordHash String?
+
   apiKeys          ApiKey[]
   records          DnsRecord[]
   auditLogs        AuditLog[]
@@ -51,6 +54,8 @@ model ApiKey {
   label     String?
   isActive  Boolean  @default(true)
   lastUsedAt DateTime?
+  // Set only for web-UI session keys; null = never expires (normal API keys).
+  expiresAt  DateTime?
 
   createdAt  DateTime  @default(now())
   revokedAt  DateTime?

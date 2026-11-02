@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>DNS 관리</title>
+<link rel="stylesheet" href="/ui/style.css">
+<link rel="icon" href="data:,">
+</head>
+<body>
+
+<div id="login-view" class="hidden">
+  <h1>DNS 관리</h1>
+  <form id="login-form" autocomplete="on">
+    <p>ID (서브도메인 또는 이메일)<br><input name="user" autocomplete="username" maxlength="254" required></p>
+    <p>비밀번호<br><input name="password" type="password" autocomplete="current-password" maxlength="256" required></p>
+    <p><button type="submit">로그인</button></p>
+    <p id="login-msg"></p>
+  </form>
+</div>
+
+<div id="app-view" class="hidden">
+  <h1><span id="domain"></span> <button type="button" id="logout">로그아웃</button></h1>
+  <p class="small" id="usage"></p>
+
+  <h2>레코드 추가</h2>
+  <form id="add-form">
+    이름 <input name="name" size="12" maxlength="128" placeholder="@" required>
+    <select name="type">
+      <option>CNAME</option><option>A</option><option>AAAA</option><option>TXT</option>
+    </select>
+    값 <input name="content" size="30" maxlength="2048" placeholder="cname.vercel-dns.com" required>
+    TTL <select name="ttl"><option value="1">auto</option><option value="300">300</option><option value="3600">3600</option></select>
+    <label><input type="checkbox" name="proxied"> proxy</label>
+    <button type="submit">추가</button>
+  </form>
+  <p class="small" id="fqdn-preview"></p>
+  <p id="add-msg"></p>
+
+  <h2>레코드 목록 <button type="button" id="reload">새로고침</button></h2>
+  <table>
+    <thead><tr><th>주소</th><th>타입</th><th>값</th><th>TTL</th><th>proxy</th><th class="act"></th></tr></thead>
+    <tbody id="records"></tbody>
+  </table>
+  <p id="list-msg"></p>
+
+  <h2>터널</h2>
+  <p class="small" id="tunnel-name"></p>
+  <table>
+    <thead><tr><th>주소</th><th>로컬 포트</th><th>프로토콜</th><th>생성일</th></tr></thead>
+    <tbody id="tunnels"></tbody>
+  </table>
+  <p class="small">터널 생성·수정은 기존처럼 API로 합니다. 여기서는 조회만 됩니다.</p>
+  <p id="tunnel-msg"></p>
+
+  <h2>비밀번호 변경</h2>
+  <form id="pw-form">
+    현재 <input name="currentPassword" type="password" autocomplete="current-password" maxlength="256" required>
+    새 비밀번호 <input name="newPassword" type="password" autocomplete="new-password" minlength="10" maxlength="256" required>
+    확인 <input name="confirm" type="password" autocomplete="new-password" minlength="10" maxlength="256" required>
+    <button type="submit">변경</button>
+  </form>
+  <p class="small">10자 이상. 변경하면 다른 곳에 로그인된 세션은 모두 끊깁니다.</p>
+  <p id="pw-msg"></p>
+
+  <h2>참고</h2>
+  <ul class="small">
+    <li>이름에 <code>@</code>를 넣으면 내 도메인 자체에 연결됩니다. <code>www</code>, <code>api</code> 같은 이름은 그 앞에 붙습니다.</li>
+    <li>Vercel은 CNAME <code>cname.vercel-dns.com</code>, proxy 끔. Vercel 프로젝트 Domains에도 같은 주소를 추가해야 합니다.</li>
+    <li>같은 이름에 CNAME과 A를 같이 둘 수 없습니다. 타입을 바꾸려면 지우고 다시 추가해 주세요.</li>
+    <li>로그인은 12시간 유지되고, 탭을 닫으면 로그아웃됩니다.</li>
+  </ul>
+</div>
+
+<noscript><p>JavaScript를 켜야 사용할 수 있습니다.</p></noscript>
+<script src="/ui/common.js"></script>
+<script src="/ui/team.js"></script>
+</body>
+</html>

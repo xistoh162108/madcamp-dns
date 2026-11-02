@@ -724,3 +724,46 @@ docker compose exec db psql -U dnsapi -d dnsapi \
 ---
 
 *시스템 문의나 긴급 장애 시 운영진 채널로 연락하세요.*
+
+---
+
+## 웹 UI (계정/비밀번호 로그인)
+
+API 키 방식은 그대로 두고, 같은 서버에 웹 화면이 추가되어 있습니다. PC 브라우저 전용이며 모바일 기기에서는 열리지 않습니다.
+
+| 주소 | 대상 | 기능 |
+|---|---|---|
+| `/console` | 운영진 | `ADMIN_API_KEY`로 들어가서 계정 추가, 비밀번호 발급·재발급, 웹 로그인 끄기, 레코드 한도, 정지/해제, 전체 터널 조회 |
+| `/` | 학생·팀 | ID(서브도메인 또는 이메일) + 비밀번호로 로그인, 내 레코드 추가·수정·삭제, 내 터널 조회, 비밀번호 변경 |
+
+### 계정 준비
+
+- 새 팀: `/console`의 "계정 추가"에서 ID를 입력하면 그 ID가 서브도메인이 됩니다. 비밀번호를 비우면 12자 랜덤으로 생성되고, 화면에 한 번만 표시됩니다.
+- 기존 학생(API 키로 만든 계정): 목록에서 "비번 발급"만 누르면 됩니다. 기존 API 키는 그대로 동작합니다.
+
+API로도 할 수 있습니다.
+
+```bash
+# 팀 생성 (password 생략 시 자동 생성, 응답에 한 번만 포함)
+curl -s -X POST $BASE/admin/teams -H "Authorization: Bearer $ADMIN_KEY" \
+  -H "Content-Type: application/json" -d '{"team":"team1","name":"1조","recordLimit":10}'
+
+# 기존 학생에게 비밀번호 발급/재발급 (서브도메인 또는 이메일)
+curl -s -X POST $BASE/admin/teams/alice/password -H "Authorization: Bearer $ADMIN_KEY" \
+  -H "Content-Type: application/json" -d '{}'
+
+# 웹 로그인 끄기 (API 키는 유지)
+curl -s -X DELETE $BASE/admin/teams/alice/password -H "Authorization: Bearer $ADMIN_KEY"
+```
+
+### 동작 방식과 보안
+
+- 로그인에 성공하면 12시간짜리 세션 키(`sk_web_…`, label `web-session`)가 발급되고, 화면은 이 키로 기존 `/v1/*` API를 호출합니다. 권한 검사, 레코드 한도, rate limit은 API 키 사용자와 완전히 같습니다.
+- 비밀번호는 scrypt(랜덤 salt)로 저장됩니다. 최소 10자입니다.
+- 없는 ID와 틀린 비밀번호는 같은 메시지, 같은 응답 시간으로 처리합니다.
+- 로그인 시도는 IP당 분당 20회로 제한되고, 계정별로 실패 10회가 쌓이면 15분간 그 계정의 로그인이 잠깁니다.
+- 비밀번호 재발급·웹 로그인 끄기·계정 정지 시 해당 계정의 웹 세션은 즉시 끊깁니다. 학생이 직접 비밀번호를 바꾸면 현재 세션을 뺀 나머지 세션이 끊깁니다.
+- 세션 키는 브라우저 sessionStorage에만 두고(탭을 닫으면 사라짐), 쿠키를 쓰지 않으므로 CSRF 대상이 아닙니다.
+- 화면에는 엄격한 CSP(`script-src 'self'`, inline 스크립트 없음), `frame-ancestors 'none'`, `X-Frame-Options: DENY`가 걸려 있고, `NODE_ENV=production`이면 HSTS도 붙습니다.
+- 터널은 웹 화면에서 조회만 됩니다. 생성·삭제는 기존 API로 합니다.
+- 로그인 시도와 비밀번호 변경은 audit log(`TEAM_LOGIN`, `TEAM_LOGIN_FAILED`, `TEAM_PASSWORD_SET`, `TEAM_PASSWORD_CHANGED`)에 남습니다.

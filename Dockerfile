@@ -36,6 +36,8 @@ COPY --chown=node:node --from=deps /app/node_modules ./node_modules
 COPY --chown=node:node --from=builder /app/dist ./dist
 # Prisma schema + migrations
 COPY --chown=node:node --from=builder /app/prisma ./prisma
+# Static web UI (team page + admin console)
+COPY --chown=node:node public ./public
 # Prisma-generated client binaries built for this exact Alpine image
 COPY --chown=node:node --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --chown=node:node package.json ./
