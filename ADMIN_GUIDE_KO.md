@@ -774,3 +774,26 @@ curl -s -X DELETE $BASE/admin/teams/alice/password -H "Authorization: Bearer $AD
 - 관리자 화면에서 새로 만든 API 키·비밀번호는 빨간 상자에 한 번만 표시됩니다.
 - 학생 화면 하단에 문의 안내(카카오톡 ID `tonypark913`)가 있습니다. 바꾸려면 `public/index.html`의 `#contact` 부분을 고치면 됩니다.
 - 로그인 시도와 비밀번호 변경은 audit log(`TEAM_LOGIN`, `TEAM_LOGIN_FAILED`, `TEAM_PASSWORD_SET`, `TEAM_PASSWORD_CHANGED`)에 남습니다.
+
+### 예약된 서브도메인
+
+루트 도메인 바로 아래 이름 중 중요한 것은 누구도(관리자 포함) 계정 ID나 추가 서브도메인으로 쓸 수 없습니다. `api.team1.도메인`처럼 계정 안쪽에 만드는 레코드에는 적용되지 않습니다.
+
+- 서비스·인프라: `www`, `dns`, `domain`, `api`, `app`, `console`, `dashboard`, `status`, `cdn`, `static`, `dev`, `staging`, `mail`, `ns1` 등
+- 공식 페이지: `about`, `blog`, `docs`, `help`, `support`, `event`, `register`, `team`, `staff`, `organizer`, `official`, `gdgoc`, `devfest`, `google`, `kaist`, `madcamp` 등
+- 로그인·결제: `auth`, `login`, `signin`, `sso`, `oauth`, `account`, `id`, `password`, `verify`, `pay` 등
+- 사칭 방지: `google`, `gdgoc`, `gdsc`, `kaist`, `official`, `admin`, `login`, `signin`, `password`, `oauth`, `verify`, `support`, `security`가 들어간 이름은 전부 거부합니다 (예: `google-login`, `kaist-official`).
+- 이 서비스가 올라간 주소(`PUBLIC_BASE_URL`)의 첫 라벨은 자동으로 예약됩니다.
+- 더 막고 싶은 이름은 `.env`의 `RESERVED_SUBDOMAINS=keynote,hackathon`처럼 추가합니다.
+
+전체 목록은 `src/lib/validate-dns.ts`의 `ORG_SUBDOMAINS`, `BLOCKED_SUBDOMAIN_PARTS`에 있습니다.
+
+### 배포 체크리스트
+
+1. 루트 도메인이 Cloudflare zone으로 올라가 있고, 메인 사이트용 `@`, `www` 레코드는 Cloudflare 대시보드에서 직접 관리합니다.
+2. `CLOUDFLARE_API_TOKEN`은 해당 zone의 DNS Edit 권한만, 터널을 쓸 경우 `CLOUDFLARE_TUNNEL_API_TOKEN`은 계정의 Cloudflare Tunnel Edit 권한만 줍니다.
+3. `ADMIN_API_KEY`, `POSTGRES_PASSWORD`는 랜덤값으로 만듭니다.
+4. API는 `127.0.0.1`에만 열려 있으니, 같은 서버의 nginx가 HTTPS를 받고 `X-Real-IP`를 덮어써서 넘겨야 합니다 (아래 nginx 설정 참고). API 포트를 외부에 직접 열지 마세요.
+5. `docker compose up -d --build`로 띄우면 migration이 자동 적용됩니다.
+6. 실제 zone에서 테스트 계정으로 레코드 하나 만들고 지워서 Cloudflare 연동을 확인한 뒤 계정을 나눠 줍니다.
+7. Postgres 볼륨(`postgres_data`)은 주기적으로 백업합니다.
