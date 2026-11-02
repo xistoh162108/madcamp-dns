@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { prisma } from "../db/prisma.js";
-import { requireStudent } from "../lib/auth.js";
+import { requireStudent, isWebSession, WEB_SESSION_LABEL } from "../lib/auth.js";
 import { generateApiKey } from "../lib/api-key.js";
-import { hashPassword, verifyPassword, getDummyHash } from "../lib/password.js";
+import { hashPassword, verifyPassword, getDummyHash, passwordProblem, PASSWORD_MIN } from "../lib/password.js";
 import { checkLoginRateLimit, assertAccountNotLocked, recordFailedLogin, checkStudentRateLimit } from "../lib/rate-limit.js";
 import { auditSafe, getClientIp, getUserAgent } from "../lib/audit.js";
 import { invalidRequest, unauthorized, studentDisabled, forbidden } from "../lib/errors.js";
@@ -14,8 +14,10 @@ import { invalidRequest, unauthorized, studentDisabled, forbidden } from "../lib
 // routes, so ownership checks, quotas and per-key rate limits stay in one
 // place and plain API-key users are unaffected.
 
-export const WEB_SESSION_LABEL = "web-session";
+export { WEB_SESSION_LABEL };
 const SESSION_HOURS = 12;
+// Oldest web sessions beyond this many per account are revoked on login.
+const MAX_SESSIONS = 20;
 
 const app = new Hono();
 
@@ -66,6 +68,19 @@ app.post("/login", async (c) => {
     }),
   ]);
 
+  const extra = await prisma.apiKey.findMany({
+    where: { studentId: student.id, label: WEB_SESSION_LABEL, isActive: true },
+    orderBy: { createdAt: "desc" },
+    skip: MAX_SESSIONS,
+    select: { id: true },
+  });
+  if (extra.length) {
+    await prisma.apiKey.updateMany({
+      where: { id: { in: extra.map((k) => k.id) } },
+      data: { isActive: false, revokedAt: new Date() },
+    });
+  }
+
   auditSafe({ actorType: "TEAM", actorId: student.id, studentId: student.id, action: "TEAM_LOGIN", ip, userAgent: getUserAgent(c) });
 
   return c.json({ token: raw, expiresAt });
@@ -74,7 +89,7 @@ app.post("/login", async (c) => {
 app.post("/logout", async (c) => {
   const auth = await requireStudent(c);
   // Only end web sessions here, never a long-lived API key.
-  if (auth.apiKey.label === WEB_SESSION_LABEL) {
+  if (isWebSession(auth.apiKey)) {
     await prisma.apiKey.update({
       where: { id: auth.apiKey.id },
       data: { isActive: false, revokedAt: new Date() },
@@ -85,15 +100,15 @@ app.post("/logout", async (c) => {
 
 const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1).max(256),
-  newPassword: z.string().min(10, "New password must be at least 10 characters.").max(256),
+  newPassword: z.string().min(PASSWORD_MIN, `새 비밀번호는 ${PASSWORD_MIN}자 이상이어야 합니다.`).max(256),
 });
 
 // Change own password. Requires a web session and the current password;
 // signs out every other web session of this account.
 app.post("/password", async (c) => {
   const auth = await requireStudent(c);
-  if (auth.apiKey.label !== WEB_SESSION_LABEL) throw forbidden("Use the web UI to change the password.");
-  await checkStudentRateLimit(auth.apiKey.keyHash, "POST");
+  if (!isWebSession(auth.apiKey)) throw forbidden("Use the web UI to change the password.");
+  await checkStudentRateLimit(auth.apiKey.keyHash, "POST", true);
 
   const body = await c.req.json().catch(() => null);
   const parsed = ChangePasswordSchema.safeParse(body);
@@ -104,6 +119,8 @@ app.post("/password", async (c) => {
     throw invalidRequest("현재 비밀번호가 맞지 않습니다.");
   }
   if (newPassword === currentPassword) throw invalidRequest("새 비밀번호가 기존과 같습니다.");
+  const problem = passwordProblem(newPassword, auth.student);
+  if (problem) throw invalidRequest(problem);
 
   await prisma.$transaction([
     prisma.student.update({ where: { id: auth.student.id }, data: { passwordHash: await hashPassword(newPassword) } }),

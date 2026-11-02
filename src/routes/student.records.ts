@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { prisma } from "../db/prisma.js";
-import { requireStudent, type StudentContext } from "../lib/auth.js";
+import { requireStudent, isWebSession, type StudentContext } from "../lib/auth.js";
 import { checkStudentRateLimit } from "../lib/rate-limit.js";
 import { createDnsRecord, patchDnsRecord, deleteDnsRecord } from "../lib/cloudflare.js";
 import { auditSafe, getClientIp, getUserAgent } from "../lib/audit.js";
@@ -28,7 +28,7 @@ const app = new Hono<{ Variables: { auth: StudentContext } }>();
 // --- Middleware: auth + rate limit, once, for every handler below ---
 app.use("*", async (c, next) => {
   const auth = await requireStudent(c);
-  await checkStudentRateLimit(auth.apiKey.keyHash, c.req.method);
+  await checkStudentRateLimit(auth.apiKey.keyHash, c.req.method, isWebSession(auth.apiKey));
   c.set("auth", auth);
   await next();
 });

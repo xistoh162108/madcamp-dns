@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
-import { requireStudent, type StudentContext } from "../lib/auth.js";
+import { requireStudent, isWebSession, type StudentContext } from "../lib/auth.js";
 import { checkStudentRateLimit } from "../lib/rate-limit.js";
 import { auditSafe, getClientIp, getUserAgent } from "../lib/audit.js";
 import { lockSubdomain, assertSubdomainAvailable } from "../lib/subdomain.js";
@@ -16,7 +16,7 @@ const MAX_ADDITIONAL_SUBDOMAINS = 5;
 // --- Middleware: auth + rate limit, once, for every handler below ---
 app.use("*", async (c, next) => {
   const auth = await requireStudent(c);
-  await checkStudentRateLimit(auth.apiKey.keyHash, c.req.method);
+  await checkStudentRateLimit(auth.apiKey.keyHash, c.req.method, isWebSession(auth.apiKey));
   c.set("auth", auth);
   await next();
 });

@@ -383,8 +383,8 @@ curl -s -X DELETE http://localhost:3000/v1/records/<record_id> \
 
 Password login on top of the API-key flow, served by the same process. Desktop browsers only.
 
-- `/console` — admin page (uses `ADMIN_API_KEY`): create accounts, issue/reset passwords, limits, suspend, list all tunnels.
-- `/` — student/team page: log in with subdomain or email + password, manage own DNS records, view own tunnel, change password.
+- `/console` — admin page (uses `ADMIN_API_KEY`). Covers every `/admin/*` endpoint: accounts (web, single, bulk, test), passwords, limits, suspend, API keys (list/issue/rotate/revoke), all records with force delete, tunnels and hostnames delete, audit log with filters.
+- `/` — student/team page. Covers every `/v1/*` endpoint: extra subdomains, DNS records, tunnel create/install command/hostnames, plus password change.
 
 Admin endpoints: `GET/POST /admin/teams`, `PATCH /admin/teams/:id`, `POST|DELETE /admin/teams/:id/password` (`:id` = subdomain or email).
 Auth endpoints: `POST /auth/login`, `POST /auth/logout`, `POST /auth/password`.

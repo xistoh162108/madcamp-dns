@@ -13,3 +13,10 @@ button:disabled { opacity: .6; }
 .ok { color: #070; white-space: pre-wrap; user-select: all; }
 .small { color: #666; font-size: 12px; }
 .hidden { display: none !important; }
+h3 { font-size: 14px; margin-top: 18px; }
+pre { background: #f4f4f4; border: 1px solid #ccc; padding: 8px; white-space: pre-wrap; word-break: break-all; user-select: all; }
+form { margin: 6px 0; }
+#secret-box { border: 2px solid #b00; padding: 8px 12px; margin: 12px 0; }
+#detail { border: 1px solid #999; padding: 4px 12px 12px; margin-top: 16px; }
+#contact { margin-top: 36px; border-top: 1px solid #ccc; }
+td.nowrap { white-space: nowrap; }
