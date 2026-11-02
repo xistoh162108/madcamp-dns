@@ -198,7 +198,7 @@
     var tr = document.createElement("tr");
     var path = "/admin/teams/" + encodeURIComponent(t.team);
     cell(tr, t.team);
-    cell(tr, [t.name, t.email].filter(Boolean).join(" / "), "wrap");
+    cell(tr, [t.name, t.email].filter(Boolean).join(" / "));
     cell(tr, t.recordCount + " / " + t.recordLimit);
     cell(tr, t.hasPassword ? "사용" : "-");
     cell(tr, t.isActive ? "활성" : "정지");
@@ -287,9 +287,9 @@
       var tr = tbody.insertRow();
       cell(tr, r.fqdn);
       cell(tr, r.type);
-      cell(tr, r.content, "wrap");
+      cell(tr, r.content, UI.valueClass(r.content));
       cell(tr, r.proxied ? "on" : "off");
-      cell(tr, r.cloudflareRecordId, "wrap small");
+      cell(tr, r.cloudflareRecordId, "small");
       cell(tr, null, "act").append(forceDeleteButton(r, "detail-msg"));
     });
     if (!records.length) UI.emptyRow(tbody, 6, "레코드가 없습니다.");
@@ -360,10 +360,10 @@
         cell(tr, owner(r.studentId, r.subdomain));
         cell(tr, r.fqdn);
         cell(tr, r.type);
-        cell(tr, r.content, "wrap");
+        cell(tr, r.content, UI.valueClass(r.content));
         cell(tr, r.ttl === 1 ? "auto" : r.ttl);
         cell(tr, r.proxied ? "on" : "off");
-        cell(tr, UI.date(r.updatedAt), "nowrap");
+        cell(tr, UI.date(r.updatedAt), null);
         cell(tr, null, "act").append(forceDeleteButton(r, "rec-msg"));
       });
       if (!d.records.length) UI.emptyRow(tbody, 8, "레코드가 없습니다.");
@@ -424,11 +424,18 @@
 
   // ── Audit log ──────────────────────────────────────────────────────
   function filled(v) { return v && typeof v === "object" && Object.keys(v).length > 0; }
+  // "key=value, key=value" breaks cleanly at the spaces instead of inside a value.
+  function pairs(o) {
+    return Object.keys(o).map(function (k) {
+      var v = o[k];
+      return k + "=" + (v !== null && typeof v === "object" ? JSON.stringify(v) : String(v));
+    }).join(", ");
+  }
   function summary(log) {
     var parts = [];
-    if (filled(log.beforeJson)) parts.push("전: " + JSON.stringify(log.beforeJson));
-    if (filled(log.afterJson)) parts.push("후: " + JSON.stringify(log.afterJson));
-    return parts.join("  ");
+    if (filled(log.beforeJson)) parts.push("전: " + pairs(log.beforeJson));
+    if (filled(log.afterJson)) parts.push("후: " + pairs(log.afterJson));
+    return parts.join(" / ");
   }
 
   async function loadAudit(seq) {
@@ -446,10 +453,10 @@
       tbody.textContent = "";
       d.logs.forEach(function (l) {
         var tr = tbody.insertRow();
-        cell(tr, UI.date(l.createdAt), "nowrap");
-        cell(tr, l.actorType === "ADMIN" ? "관리자" : owner(l.actorId, l.actorType), "nowrap");
-        cell(tr, l.studentId ? owner(l.studentId) : "", "nowrap");
-        cell(tr, l.action, "nowrap");
+        cell(tr, UI.date(l.createdAt), null);
+        cell(tr, l.actorType === "ADMIN" ? "관리자" : owner(l.actorId, l.actorType), null);
+        cell(tr, l.studentId ? owner(l.studentId) : "", null);
+        cell(tr, l.action, null);
         var s = summary(l);
         var td = cell(tr, s.length > 160 ? s.slice(0, 160) + "…" : s, "wrap small");
         td.title = s;

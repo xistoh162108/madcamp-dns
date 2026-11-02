@@ -23,10 +23,10 @@
   <p class="small" id="usage"></p>
 
   <h2>내 서브도메인</h2>
-  <table>
+  <div class="tw"><table>
     <thead><tr><th>도메인</th><th>종류</th><th>추가한 날</th><th class="act"></th></tr></thead>
     <tbody id="subdomains"></tbody>
-  </table>
+  </table></div>
   <form id="claim-form">
     추가 서브도메인 <input name="sub" size="16" maxlength="32" placeholder="myapp" required>
     <button type="submit">신청</button>
@@ -50,10 +50,10 @@
   <p id="add-msg"></p>
 
   <h2>레코드 목록</h2>
-  <table>
-    <thead><tr><th>주소</th><th>타입</th><th>가리키는 곳</th><th>TTL</th><th>proxy</th><th class="act"></th></tr></thead>
+  <div class="tw"><table>
+    <thead><tr><th>Name (주소)</th><th>Type</th><th>Target (가리키는 곳)</th><th>TTL</th><th>Proxy</th><th class="act"></th></tr></thead>
     <tbody id="records"></tbody>
-  </table>
+  </table></div>
   <p id="list-msg"></p>
 
   <h2>터널</h2>
@@ -63,10 +63,10 @@
   </div>
   <div id="tunnel-exists" class="hidden">
     <p><span id="tunnel-name"></span> <button type="button" id="tunnel-token">설치 명령 보기</button></p>
-    <table>
-      <thead><tr><th>주소</th><th>로컬 포트</th><th>프로토콜</th><th>추가한 날</th><th class="act"></th></tr></thead>
+    <div class="tw"><table>
+      <thead><tr><th>Hostname</th><th>Local port</th><th>Protocol</th><th>추가한 날</th><th class="act"></th></tr></thead>
       <tbody id="tunnels"></tbody>
-    </table>
+    </table></div>
     <form id="host-form">
       이름 <input name="name" size="10" maxlength="128" value="@" required>
       . <select name="sub"></select>

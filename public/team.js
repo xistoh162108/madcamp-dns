@@ -151,7 +151,8 @@
     var tr = document.createElement("tr");
     addressCell(tr, rec.fqdn, rec.type !== "TXT");
     cell(tr, rec.type);
-    cell(tr, target(rec.type, rec.content), "wrap");
+    var tgt = target(rec.type, rec.content);
+    cell(tr, tgt, UI.valueClass(tgt));
     cell(tr, rec.ttl === 1 ? "auto" : rec.ttl);
     cell(tr, rec.proxied ? "on" : "off");
     cell(tr, null, "act").append(

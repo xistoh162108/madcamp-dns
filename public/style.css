@@ -1,11 +1,13 @@
-body { font-family: sans-serif; font-size: 14px; max-width: 1000px; min-width: 860px; margin: 20px auto; padding: 0 16px; }
+body { font-family: sans-serif; font-size: 14px; max-width: 1400px; min-width: 960px; word-break: keep-all; margin: 20px auto; padding: 0 16px; }
 h1 { font-size: 18px; }
 h2 { font-size: 15px; margin-top: 28px; }
 table { border-collapse: collapse; width: 100%; table-layout: auto; }
-th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; vertical-align: middle; }
+th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; vertical-align: middle; white-space: nowrap; }
 th { background: #eee; }
-td.wrap { word-break: break-all; }
-td.act, th.act { white-space: nowrap; width: 1%; }
+td.wrap { white-space: normal; overflow-wrap: break-word; min-width: 360px; }
+.tw { overflow-x: auto; margin: 4px 0; }
+td.act, th.act { width: 1%; }
+button { white-space: nowrap; }
 tr.editing td { background: #fffbe6; }
 input, select, button { font-size: 14px; }
 button:disabled { opacity: .6; }
@@ -19,4 +21,4 @@ form { margin: 6px 0; }
 #secret-box { border: 2px solid #b00; padding: 8px 12px; margin: 12px 0; }
 #detail { border: 1px solid #999; padding: 4px 12px 12px; margin-top: 16px; }
 #contact { margin-top: 36px; border-top: 1px solid #ccc; }
-td.nowrap { white-space: nowrap; }
+tr.editing div.small { white-space: normal; max-width: 420px; }
