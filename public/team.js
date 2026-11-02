@@ -4,6 +4,7 @@
   var KEY = "dns_session";
   var token = null;
   var me = null;
+  var subs = [];        // [{ subdomain, fqdn, primary, id?, createdAt? }]
   var loadSeq = 0;
 
   try {
@@ -25,8 +26,12 @@
   function show() {
     UI.show("login-view", !token);
     UI.show("app-view", !!token);
+    hideInstall();
     if (token) load();
-    else { me = null; $("records").textContent = ""; $("tunnels").textContent = ""; }
+    else {
+      me = null;
+      ["records", "tunnels", "subdomains"].forEach(function (id) { $(id).textContent = ""; });
+    }
   }
 
   UI.onSubmit($("login-form"), async function (f) {
@@ -44,57 +49,112 @@
     setSession(null);
     show();
   };
-  $("reload").onclick = function () { load(); };
+  $("reload").onclick = function () {
+    clearErrors(["list-msg", "tunnel-msg", "sub-msg", "add-msg", "pw-msg"]);
+    load();
+  };
+
+  // ── Load everything ────────────────────────────────────────────────
+  function clearErrors(ids) { ids.forEach(function (id) { if ($(id).className === "err") msg(id, ""); }); }
 
   async function load() {
     var seq = ++loadSeq;
-    if ($("list-msg").className === "err") msg("list-msg", "");
-    if ($("tunnel-msg").className === "err") msg("tunnel-msg", "");
+    var r;
     try {
-      var r = await Promise.all([api("GET", "/v1/me"), api("GET", "/v1/records")]);
-      if (seq !== loadSeq || !token) return;
-      me = r[0].student;
-      var records = r[1].records;
-      $("domain").textContent = me.subdomain;
-      $("usage").textContent = (me.name ? me.name + " · " : "") + "레코드 " + records.length + " / " + me.recordLimit;
-      var tbody = $("records");
-      tbody.textContent = "";
-      records.forEach(function (rec) { tbody.appendChild(viewRow(rec)); });
-      if (!records.length) UI.emptyRow(tbody, 6, "레코드가 없습니다.");
-      preview();
-    } catch (e) { if (seq === loadSeq) msg("list-msg", e.message); }
-    loadTunnels(seq);
+      r = await Promise.all([api("GET", "/v1/me"), api("GET", "/v1/subdomains"), api("GET", "/v1/records")]);
+    } catch (e) { if (seq === loadSeq) msg("list-msg", e.message); return; }
+    if (seq !== loadSeq || !token) return;
+
+    me = r[0].student;
+    $("domain").textContent = me.subdomain;
+    renderSubdomains(r[1]);
+    renderRecords(r[2].records);
+
+    var hostCount = await loadTunnel(seq);
+    if (seq !== loadSeq) return;
+    $("usage").textContent = (me.name ? me.name + " · " : "") + "레코드 " + r[2].records.length +
+      (hostCount ? " + 터널 주소 " + hostCount : "") + " / 한도 " + me.recordLimit;
   }
 
-  async function loadTunnels(seq) {
-    var tbody = $("tunnels");
+  // ── Subdomains ─────────────────────────────────────────────────────
+  function renderSubdomains(d) {
+    subs = [{ subdomain: d.primary.subdomain, fqdn: d.primary.fqdn, primary: true }].concat(
+      d.additional.map(function (a) { return { id: a.id, subdomain: a.subdomain, fqdn: a.fqdn, createdAt: a.createdAt }; })
+    );
+    var tbody = $("subdomains");
+    tbody.textContent = "";
+    subs.forEach(function (s) {
+      var tr = tbody.insertRow();
+      cell(tr, s.fqdn);
+      cell(tr, s.primary ? "기본" : "추가");
+      cell(tr, UI.date(s.createdAt));
+      var a = cell(tr, null, "act");
+      if (!s.primary) {
+        a.append(button("반납", async function () {
+          if (!confirm(s.fqdn + " 을(를) 반납할까요? 이 아래에 레코드나 터널 주소가 있으면 먼저 지워야 합니다.")) return;
+          try { await api("DELETE", "/v1/subdomains/" + encodeURIComponent(s.id)); msg("sub-msg", "반납했습니다.", true); }
+          catch (e) { msg("sub-msg", e.message); }
+          load();
+        }));
+      }
+    });
+    $("claim-count").textContent = "추가 " + d.additionalUsed + " / " + d.additionalLimit + "개";
+    var opts = subs.map(function (s) { return [s.subdomain, s.fqdn]; });
+    UI.fillSelect($("add-form").sub, opts);
+    UI.fillSelect($("host-form").sub, opts);
+    preview();
+    hostPreview();
+  }
+
+  UI.onSubmit($("claim-form"), async function (cf) {
+    msg("sub-msg", "");
     try {
-      var d = await api("GET", "/v1/tunnels");
-      if (seq !== loadSeq || !token) return;
-      tbody.textContent = "";
-      var t = d.tunnel || {};
-      $("tunnel-name").textContent = t.exists ? "터널 이름: " + t.name : "";
-      var hosts = t.exists ? t.hostnames || [] : [];
-      hosts.forEach(function (h) {
-        var tr = tbody.insertRow();
-        cell(tr, h.fqdn);
-        cell(tr, h.localPort);
-        cell(tr, h.protocol);
-        cell(tr, new Date(h.createdAt).toLocaleString("ko-KR"));
-      });
-      if (!hosts.length) UI.emptyRow(tbody, 4, t.exists ? "연결된 주소가 없습니다." : "만든 터널이 없습니다.");
-    } catch (e) { if (seq === loadSeq) msg("tunnel-msg", e.message); }
+      var d = await api("POST", "/v1/subdomains", { subdomain: cf.sub.value.trim().toLowerCase() });
+      cf.reset();
+      msg("sub-msg", d.subdomain.fqdn + " 을(를) 추가했습니다.", true);
+      load();
+    } catch (e) { msg("sub-msg", e.message); }
+  });
+
+  // ── Records ────────────────────────────────────────────────────────
+  function baseOf(rec) { return rec.name === "@" ? rec.fqdn : rec.fqdn.slice(rec.name.length + 1); }
+  function fqdnFor(name, base) {
+    var n = name.trim().toLowerCase();
+    return !n ? "" : n === "@" ? base : n + "." + base;
+  }
+  function target(type, content) {
+    if (!content) return "";
+    if (type === "TXT") return "텍스트 \"" + content + "\"";
+    if (type === "CNAME") return "→ " + content;
+    return "→ " + content + " (서버 IP)";
+  }
+  function addressCell(tr, fqdn, linkable) {
+    var td = cell(tr);
+    if (!linkable) { td.textContent = fqdn; return; }
+    var a = document.createElement("a");
+    a.href = "http://" + fqdn + "/";
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.textContent = fqdn;
+    td.append(a);
+  }
+  function rootDomain() { return me ? me.subdomain.slice(me.subdomain.indexOf(".") + 1) : ""; }
+
+  function renderRecords(records) {
+    var tbody = $("records");
+    tbody.textContent = "";
+    records.forEach(function (rec) { tbody.appendChild(viewRow(rec)); });
+    if (!records.length) UI.emptyRow(tbody, 6, "레코드가 없습니다.");
   }
 
   function viewRow(rec) {
     var tr = document.createElement("tr");
-    cell(tr, rec.fqdn);
+    addressCell(tr, rec.fqdn, rec.type !== "TXT");
     cell(tr, rec.type);
-    cell(tr, rec.content, "wrap");
+    cell(tr, target(rec.type, rec.content), "wrap");
     cell(tr, rec.ttl === 1 ? "auto" : rec.ttl);
     cell(tr, rec.proxied ? "on" : "off");
-    var a = cell(tr, null, "act");
-    a.append(
+    cell(tr, null, "act").append(
       button("수정", function () { tr.replaceWith(editRow(rec)); }),
       " ",
       button("삭제", async function () {
@@ -128,7 +188,15 @@
     px.checked = rec.proxied;
     px.disabled = rec.type === "TXT";
 
-    cell(tr).append(name);
+    var base = baseOf(rec);
+    var hint = document.createElement("div");
+    hint.className = "small";
+    function update() { hint.textContent = (fqdnFor(name.value, base) || "(이름 없음)") + " " + target(rec.type, content.value.trim()); }
+    name.addEventListener("input", update);
+    content.addEventListener("input", update);
+    update();
+
+    cell(tr).append(name, hint);
     cell(tr, rec.type);
     cell(tr).append(content);
     cell(tr).append(ttl);
@@ -157,27 +225,33 @@
 
   var f = $("add-form");
   function preview() {
-    var n = f.name.value.trim().toLowerCase();
-    $("fqdn-preview").textContent = me && n ? "→ " + (n === "@" ? me.subdomain : n + "." + me.subdomain) : "";
+    var base = me && f.sub.value ? f.sub.value + "." + rootDomain() : "";
+    var host = base ? fqdnFor(f.name.value, base) : "";
+    $("fqdn-preview").textContent = host ? "미리보기: " + host + " " + target(f.type.value, f.content.value.trim()) : "";
   }
   f.name.addEventListener("input", preview);
+  f.content.addEventListener("input", preview);
+  f.sub.addEventListener("change", preview);
   f.type.addEventListener("change", function () {
     var t = f.type.value;
     f.content.placeholder = { CNAME: "cname.vercel-dns.com", A: "203.0.113.10", AAAA: "2001:db8::1", TXT: "verification=..." }[t];
     f.proxied.disabled = t === "TXT";
     if (f.proxied.disabled) f.proxied.checked = false;
+    preview();
   });
 
   UI.onSubmit(f, async function () {
     msg("add-msg", "");
+    var body = {
+      name: f.name.value.trim(),
+      type: f.type.value,
+      content: f.content.value.trim(),
+      ttl: Number(f.ttl.value),
+      proxied: f.proxied.checked
+    };
+    if (f.sub.value && subs.length && f.sub.value !== subs[0].subdomain) body.subdomain = f.sub.value;
     try {
-      await api("POST", "/v1/records", {
-        name: f.name.value.trim(),
-        type: f.type.value,
-        content: f.content.value.trim(),
-        ttl: Number(f.ttl.value),
-        proxied: f.proxied.checked
-      });
+      await api("POST", "/v1/records", body);
       f.name.value = "";
       f.content.value = "";
       preview();
@@ -186,6 +260,100 @@
     } catch (e) { msg("add-msg", e.message); }
   });
 
+  // ── Tunnel ─────────────────────────────────────────────────────────
+  async function loadTunnel(seq) {
+    var d;
+    try { d = await api("GET", "/v1/tunnels"); }
+    catch (e) { if (seq === loadSeq) msg("tunnel-msg", e.message); return 0; }
+    if (seq !== loadSeq || !token) return 0;
+    var t = d.tunnel || {};
+    UI.show("tunnel-none", !t.exists);
+    UI.show("tunnel-exists", !!t.exists);
+    var tbody = $("tunnels");
+    tbody.textContent = "";
+    if (!t.exists) return 0;
+    $("tunnel-name").textContent = "터널 이름: " + t.name;
+    var hosts = t.hostnames || [];
+    hosts.forEach(function (h) {
+      var tr = tbody.insertRow();
+      addressCell(tr, h.fqdn, true);
+      cell(tr, h.localPort);
+      cell(tr, h.protocol);
+      cell(tr, UI.date(h.createdAt));
+      cell(tr, null, "act").append(button("삭제", async function () {
+        if (!confirm(h.fqdn + " 터널 주소를 삭제할까요?")) return;
+        try { await api("DELETE", "/v1/tunnels/hostnames/" + encodeURIComponent(h.id)); msg("tunnel-msg", "삭제했습니다.", true); }
+        catch (e) { msg("tunnel-msg", e.message); }
+        load();
+      }));
+    });
+    if (!hosts.length) UI.emptyRow(tbody, 5, "연결된 주소가 없습니다.");
+    return hosts.length;
+  }
+
+  function showInstall(cmd) {
+    $("install-cmd").textContent = cmd;
+    UI.show("install-box", true);
+  }
+  function hideInstall() {
+    $("install-cmd").textContent = "";
+    UI.show("install-box", false);
+  }
+  $("install-hide").onclick = hideInstall;
+
+  async function busy(btn, fn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    try { await fn(); } finally { btn.disabled = false; }
+  }
+
+  $("tunnel-create").onclick = function () {
+    return busy(this, async function () {
+      msg("tunnel-msg", "");
+      try {
+        var d = await api("POST", "/v1/tunnels");
+        showInstall(d.installCommand);
+        msg("tunnel-msg", "터널을 만들었습니다.", true);
+        load();
+      } catch (e) { msg("tunnel-msg", e.message); }
+    });
+  };
+
+  $("tunnel-token").onclick = function () {
+    return busy(this, async function () {
+      msg("tunnel-msg", "");
+      try { showInstall((await api("GET", "/v1/tunnels/token")).installCommand); }
+      catch (e) { msg("tunnel-msg", e.message); }
+    });
+  };
+
+  var hf = $("host-form");
+  function hostPreview() {
+    var base = me && hf.sub.value ? hf.sub.value + "." + rootDomain() : "";
+    var host = base ? fqdnFor(hf.name.value, base) : "";
+    $("host-preview").textContent = host && hf.port.value ? "미리보기: " + host + " → VM의 localhost:" + hf.port.value : "";
+  }
+  hf.name.addEventListener("input", hostPreview);
+  hf.port.addEventListener("input", hostPreview);
+  hf.sub.addEventListener("change", hostPreview);
+
+  UI.onSubmit(hf, async function () {
+    msg("tunnel-msg", "");
+    try {
+      await api("POST", "/v1/tunnels/hostnames", {
+        subdomain: hf.sub.value,
+        name: hf.name.value.trim() || "@",
+        localPort: Number(hf.port.value)
+      });
+      hf.port.value = "";
+      hf.name.value = "@";
+      hostPreview();
+      msg("tunnel-msg", "주소를 추가했습니다.", true);
+      load();
+    } catch (e) { msg("tunnel-msg", e.message); }
+  });
+
+  // ── Password ───────────────────────────────────────────────────────
   UI.onSubmit($("pw-form"), async function (pf) {
     msg("pw-msg", "");
     if (pf.newPassword.value !== pf.confirm.value) { msg("pw-msg", "새 비밀번호 확인이 일치하지 않습니다."); return; }

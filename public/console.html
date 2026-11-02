@@ -19,33 +19,126 @@
 
 <div id="app-view" class="hidden">
   <h1>DNS 관리자 <button type="button" id="logout">나가기</button> <button type="button" id="reload">새로고침</button></h1>
+  <p class="small">
+    <a href="#sec-create">계정 만들기</a> ·
+    <a href="#sec-accounts">계정 목록</a> ·
+    <a href="#sec-records">전체 레코드</a> ·
+    <a href="#sec-tunnels">터널</a> ·
+    <a href="#sec-audit">감사 로그</a>
+  </p>
 
-  <h2>계정 추가</h2>
+  <div id="secret-box" class="hidden">
+    <p class="err">아래 값은 지금 한 번만 보입니다. 바로 복사해서 전달하세요.</p>
+    <pre id="secret-text"></pre>
+    <button type="button" id="secret-hide">확인했음, 닫기</button>
+  </div>
+
+  <h2 id="sec-create">계정 만들기</h2>
   <form id="create-form">
+    <b>웹 로그인 계정</b><br>
     ID <input name="team" size="12" maxlength="32" placeholder="team1" required>
     이름 <input name="label" size="10" maxlength="100">
     비밀번호 <input name="password" size="14" maxlength="256" minlength="10" placeholder="비우면 자동" autocomplete="off">
     한도 <input name="recordLimit" type="number" min="1" max="100" value="10">
-    <button type="submit">추가</button>
+    <button type="submit">만들기</button>
   </form>
-  <p class="small">ID가 그대로 서브도메인이 됩니다 (team1 → team1.루트도메인). 기존 학생 계정은 아래 목록에서 비밀번호만 발급하면 됩니다.</p>
+  <p class="small">ID가 그대로 서브도메인이 됩니다. 비밀번호로 웹 화면에 로그인합니다.</p>
   <p id="create-msg"></p>
 
-  <h2>계정 목록</h2>
-  <p><input id="filter" size="24" placeholder="검색 (ID, 이름, 이메일)"></p>
+  <form id="student-form">
+    <b>API 키 계정 (이메일)</b><br>
+    이메일 <input name="email" type="email" size="20" maxlength="254" required>
+    이름 <input name="label" size="10" maxlength="100">
+    서브도메인 <input name="sub" size="12" maxlength="32" required>
+    한도 <input name="recordLimit" type="number" min="1" max="100" value="10">
+    <label><input type="checkbox" name="withPw" checked> 웹 비밀번호도 발급</label>
+    <button type="submit">만들기</button>
+  </form>
+  <p id="student-msg"></p>
+
+  <form id="bulk-form">
+    <b>API 키 계정 일괄 생성 (최대 100명)</b><br>
+    <textarea name="rows" rows="5" cols="70" placeholder="이메일,이름,서브도메인 (한 줄에 한 명)&#10;alice@example.com,Alice,alice" required></textarea><br>
+    한도 <input name="recordLimit" type="number" min="1" max="100" value="10">
+    <label><input type="checkbox" name="withPw"> 웹 비밀번호도 발급</label>
+    <button type="submit">일괄 생성</button>
+  </form>
+  <p id="bulk-msg"></p>
+
+  <form id="test-form">
+    <b>테스트 계정</b>
+    개수 <input name="count" type="number" min="1" max="20" value="2">
+    한도 <input name="recordLimit" type="number" min="1" max="100" value="10">
+    <button type="submit">만들기</button>
+  </form>
+  <p id="test-msg"></p>
+
+  <h2 id="sec-accounts">계정 목록</h2>
+  <p><input id="filter" size="24" placeholder="검색 (ID, 이름, 이메일)"> <span class="small" id="account-count"></span></p>
   <table>
     <thead><tr><th>ID</th><th>이름 / 이메일</th><th>레코드</th><th>웹 로그인</th><th>상태</th><th class="act"></th></tr></thead>
     <tbody id="teams"></tbody>
   </table>
   <p id="list-msg"></p>
 
-  <h2>터널 목록</h2>
+  <div id="detail" class="hidden">
+    <h2>계정 상세: <span id="detail-title"></span> <button type="button" id="detail-close">닫기</button></h2>
+    <form id="rename-form">
+      이름 <input name="label" size="20" maxlength="100">
+      <button type="submit">이름 저장</button>
+    </form>
+    <h3>API 키</h3>
+    <table>
+      <thead><tr><th>접두어</th><th>라벨</th><th>상태</th><th>마지막 사용</th><th>종류</th><th>생성</th><th class="act"></th></tr></thead>
+      <tbody id="keys"></tbody>
+    </table>
+    <form id="key-form">
+      라벨 <input name="label" size="16" maxlength="64" placeholder="lab-machine">
+      <button type="submit">키 발급</button>
+      <button type="button" id="rotate">전체 교체 (기존 키 모두 폐기)</button>
+    </form>
+    <h3>이 계정의 레코드</h3>
+    <table>
+      <thead><tr><th>주소</th><th>타입</th><th>값</th><th>proxy</th><th>Cloudflare ID</th><th class="act"></th></tr></thead>
+      <tbody id="detail-records"></tbody>
+    </table>
+    <p><button type="button" id="detail-audit">이 계정의 감사 로그 보기</button></p>
+    <p id="detail-msg"></p>
+  </div>
+
+  <h2 id="sec-records">전체 레코드</h2>
+  <p>
+    계정 <select id="rec-filter"><option value="">전체</option></select>
+    <button type="button" id="rec-prev">이전</button> <span id="rec-page" class="small"></span> <button type="button" id="rec-next">다음</button>
+  </p>
   <table>
-    <thead><tr><th>계정</th><th>터널 이름</th><th>주소</th><th>로컬 포트</th><th>프로토콜</th></tr></thead>
+    <thead><tr><th>계정</th><th>주소</th><th>타입</th><th>값</th><th>TTL</th><th>proxy</th><th>수정</th><th class="act"></th></tr></thead>
+    <tbody id="all-records"></tbody>
+  </table>
+  <p id="rec-msg"></p>
+
+  <h2 id="sec-tunnels">터널</h2>
+  <table>
+    <thead><tr><th>계정</th><th>터널 이름</th><th>주소</th><th>로컬 포트</th><th>프로토콜</th><th class="act"></th></tr></thead>
     <tbody id="tunnels"></tbody>
   </table>
   <p class="small" id="tunnel-count"></p>
   <p id="tunnel-msg"></p>
+
+  <h2 id="sec-audit">감사 로그</h2>
+  <form id="audit-form">
+    계정 <select name="student"><option value="">전체</option></select>
+    작업 <select name="action"><option value="">전체</option></select>
+    시작 <input name="after" type="datetime-local">
+    끝 <input name="before" type="datetime-local">
+    <button type="submit">조회</button>
+  </form>
+  <p><button type="button" id="audit-prev">이전</button> <span id="audit-page" class="small"></span> <button type="button" id="audit-next">다음</button></p>
+  <table>
+    <thead><tr><th>시각</th><th>주체</th><th>계정</th><th>작업</th><th>내용</th><th>IP</th></tr></thead>
+    <tbody id="audit"></tbody>
+  </table>
+  <p id="audit-msg"></p>
 </div>
 
 <noscript><p>JavaScript를 켜야 사용할 수 있습니다.</p></noscript>

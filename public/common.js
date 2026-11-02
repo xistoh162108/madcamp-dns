@@ -108,6 +108,21 @@ var UI = (function () {
 
   function show(id, visible) { $(id).classList.toggle("hidden", !visible); }
 
+  function date(v) {
+    if (!v) return "";
+    var d = new Date(v);
+    return isNaN(d) ? "" : d.toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" });
+  }
+
+  // Replace a <select>'s options while keeping the current choice when possible.
+  function fillSelect(sel, items) {
+    var keep = sel.value;
+    sel.textContent = "";
+    items.forEach(function (it) { sel.add(new Option(it[1], it[0])); });
+    if (items.some(function (it) { return String(it[0]) === keep; })) sel.value = keep;
+  }
+
   return { $: $, blockMobile: blockMobile, store: store, read: read, client: client, msg: msg,
-           button: button, onSubmit: onSubmit, cell: cell, emptyRow: emptyRow, show: show };
+           button: button, onSubmit: onSubmit, cell: cell, emptyRow: emptyRow, show: show,
+           date: date, fillSelect: fillSelect };
 })();

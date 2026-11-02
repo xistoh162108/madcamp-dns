@@ -19,16 +19,29 @@
 </div>
 
 <div id="app-view" class="hidden">
-  <h1><span id="domain"></span> <button type="button" id="logout">로그아웃</button></h1>
+  <h1><span id="domain"></span> <button type="button" id="logout">로그아웃</button> <button type="button" id="reload">새로고침</button></h1>
   <p class="small" id="usage"></p>
+
+  <h2>내 서브도메인</h2>
+  <table>
+    <thead><tr><th>도메인</th><th>종류</th><th>추가한 날</th><th class="act"></th></tr></thead>
+    <tbody id="subdomains"></tbody>
+  </table>
+  <form id="claim-form">
+    추가 서브도메인 <input name="sub" size="16" maxlength="32" placeholder="myapp" required>
+    <button type="submit">신청</button>
+    <span class="small" id="claim-count"></span>
+  </form>
+  <p id="sub-msg"></p>
 
   <h2>레코드 추가</h2>
   <form id="add-form">
-    이름 <input name="name" size="12" maxlength="128" placeholder="@" required>
+    이름 <input name="name" size="10" maxlength="128" placeholder="@" required>
+    . <select name="sub"></select>
     <select name="type">
       <option>CNAME</option><option>A</option><option>AAAA</option><option>TXT</option>
     </select>
-    값 <input name="content" size="30" maxlength="2048" placeholder="cname.vercel-dns.com" required>
+    값 <input name="content" size="28" maxlength="2048" placeholder="cname.vercel-dns.com" required>
     TTL <select name="ttl"><option value="1">auto</option><option value="300">300</option><option value="3600">3600</option></select>
     <label><input type="checkbox" name="proxied"> proxy</label>
     <button type="submit">추가</button>
@@ -36,20 +49,37 @@
   <p class="small" id="fqdn-preview"></p>
   <p id="add-msg"></p>
 
-  <h2>레코드 목록 <button type="button" id="reload">새로고침</button></h2>
+  <h2>레코드 목록</h2>
   <table>
-    <thead><tr><th>주소</th><th>타입</th><th>값</th><th>TTL</th><th>proxy</th><th class="act"></th></tr></thead>
+    <thead><tr><th>주소</th><th>타입</th><th>가리키는 곳</th><th>TTL</th><th>proxy</th><th class="act"></th></tr></thead>
     <tbody id="records"></tbody>
   </table>
   <p id="list-msg"></p>
 
   <h2>터널</h2>
-  <p class="small" id="tunnel-name"></p>
-  <table>
-    <thead><tr><th>주소</th><th>로컬 포트</th><th>프로토콜</th><th>생성일</th></tr></thead>
-    <tbody id="tunnels"></tbody>
-  </table>
-  <p class="small">터널 생성·수정은 기존처럼 API로 합니다. 여기서는 조회만 됩니다.</p>
+  <p class="small">VM이 바깥에서 접속을 받을 수 없을 때, VM 안의 cloudflared가 바깥으로 연결을 열어서 내 도메인으로 들어온 요청을 로컬 포트로 넘겨줍니다.</p>
+  <div id="tunnel-none" class="hidden">
+    <p>아직 터널이 없습니다. <button type="button" id="tunnel-create">터널 만들기</button></p>
+  </div>
+  <div id="tunnel-exists" class="hidden">
+    <p><span id="tunnel-name"></span> <button type="button" id="tunnel-token">설치 명령 보기</button></p>
+    <table>
+      <thead><tr><th>주소</th><th>로컬 포트</th><th>프로토콜</th><th>추가한 날</th><th class="act"></th></tr></thead>
+      <tbody id="tunnels"></tbody>
+    </table>
+    <form id="host-form">
+      이름 <input name="name" size="10" maxlength="128" value="@" required>
+      . <select name="sub"></select>
+      → localhost: <input name="port" type="number" min="1024" max="65535" size="6" placeholder="3000" required>
+      <button type="submit">주소 추가</button>
+    </form>
+    <p class="small" id="host-preview"></p>
+  </div>
+  <div id="install-box" class="hidden">
+    <p class="small">VM에서 아래 명령을 한 번 실행하세요. 이 명령에는 비밀 토큰이 들어 있으니 다른 사람에게 보여주지 마세요.</p>
+    <pre id="install-cmd"></pre>
+    <button type="button" id="install-hide">닫기</button>
+  </div>
   <p id="tunnel-msg"></p>
 
   <h2>비밀번호 변경</h2>
@@ -59,16 +89,26 @@
     확인 <input name="confirm" type="password" autocomplete="new-password" minlength="10" maxlength="256" required>
     <button type="submit">변경</button>
   </form>
-  <p class="small">10자 이상. 변경하면 다른 곳에 로그인된 세션은 모두 끊깁니다.</p>
+  <p class="small">10자 이상, ID나 이메일이 들어가면 안 됩니다. 변경하면 이 창을 뺀 다른 로그인은 모두 끊깁니다.<br>
+  팀이 같이 쓰는 계정이면 바꾼 비밀번호를 팀원에게 꼭 공유해 주세요.</p>
   <p id="pw-msg"></p>
 
   <h2>참고</h2>
   <ul class="small">
-    <li>이름에 <code>@</code>를 넣으면 내 도메인 자체에 연결됩니다. <code>www</code>, <code>api</code> 같은 이름은 그 앞에 붙습니다.</li>
+    <li>이름에 <code>@</code>를 넣으면 고른 서브도메인 자체에 연결됩니다. <code>www</code>, <code>api</code> 같은 이름은 그 앞에 붙습니다.</li>
+    <li>DNS는 주소를 다른 곳으로 이어주는 것이지 HTTP 리다이렉트가 아닙니다. 브라우저 주소창은 내 도메인 그대로 유지됩니다.</li>
     <li>Vercel은 CNAME <code>cname.vercel-dns.com</code>, proxy 끔. Vercel 프로젝트 Domains에도 같은 주소를 추가해야 합니다.</li>
-    <li>같은 이름에 CNAME과 A를 같이 둘 수 없습니다. 타입을 바꾸려면 지우고 다시 추가해 주세요.</li>
+    <li>같은 이름에 CNAME과 A를 같이 둘 수 없고, 터널에 쓰는 주소에는 레코드를 따로 만들 수 없습니다.</li>
+    <li>레코드 타입은 바꿀 수 없습니다. 지우고 다시 추가해 주세요.</li>
+    <li>목록의 주소를 누르면 새 탭에서 열립니다. 방금 바꾼 레코드는 반영까지 몇 분 걸릴 수 있습니다.</li>
     <li>로그인은 12시간 유지되고, 탭을 닫으면 로그아웃됩니다.</li>
   </ul>
+</div>
+
+<div id="contact">
+  <h2>문의</h2>
+  <p class="small">문제가 생기면 화면 캡처, 어떤 작업을 하다가 생겼는지, 화면에 나온 오류 메시지를 박지민에게 카카오톡으로 보내 주세요.<br>
+  카카오톡 ID <code>tonypark913</code>으로 찾거나, 단톡방에서 찾아서 보내도 됩니다.</p>
 </div>
 
 <noscript><p>JavaScript를 켜야 사용할 수 있습니다.</p></noscript>

@@ -8,6 +8,8 @@ import {
   studentDisabled,
 } from "./errors.js";
 import type { Student, ApiKey } from "@prisma/client";
+import { getClientIp } from "./audit.js";
+import { assertAdminNotLocked, recordAdminFailure } from "./rate-limit.js";
 
 export interface AdminContext {
   type: "admin";
@@ -30,8 +32,14 @@ export function extractBearerToken(c: Context): string | null {
 }
 
 export async function requireAdmin(c: Context): Promise<AdminContext> {
+  const ip = getClientIp(c);
+  await assertAdminNotLocked(ip);
+
   const token = extractBearerToken(c);
-  if (!token) throw unauthorized();
+  if (!token) {
+    await recordAdminFailure(ip);
+    throw unauthorized();
+  }
 
   const adminKey = process.env.ADMIN_API_KEY;
   if (!adminKey) throw unauthorized("Admin API key not configured.");
@@ -39,7 +47,10 @@ export async function requireAdmin(c: Context): Promise<AdminContext> {
   // Hash both sides first so lengths are always 32 bytes — no padding needed.
   const tokenHash = createHash("sha256").update(token).digest();
   const adminHash = createHash("sha256").update(adminKey).digest();
-  if (!timingSafeEqual(tokenHash, adminHash)) throw unauthorized("Missing or invalid API key.");
+  if (!timingSafeEqual(tokenHash, adminHash)) {
+    await recordAdminFailure(ip);
+    throw unauthorized("Missing or invalid API key.");
+  }
 
   return { type: "admin" };
 }
@@ -68,4 +79,12 @@ export async function requireStudent(c: Context): Promise<StudentContext> {
     .catch(() => {});
 
   return { type: "student", student: apiKey.student, apiKey };
+}
+
+export const WEB_SESSION_LABEL = "web-session";
+
+// A web-UI session key: minted by /auth/login with an expiry. A long-lived
+// API key that merely carries the same label does not count.
+export function isWebSession(apiKey: { label: string | null; expiresAt: Date | null }): boolean {
+  return apiKey.label === WEB_SESSION_LABEL && apiKey.expiresAt !== null;
 }

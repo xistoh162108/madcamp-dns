@@ -6,6 +6,7 @@ CREATE TABLE "Student" (
     "subdomain" TEXT NOT NULL,
     "recordLimit" INTEGER NOT NULL DEFAULT 10,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "passwordHash" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -21,6 +22,7 @@ CREATE TABLE "ApiKey" (
     "label" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "lastUsedAt" TIMESTAMP(3),
+    "expiresAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "revokedAt" TIMESTAMP(3),
 

@@ -34,6 +34,8 @@ const CSP = [
   "base-uri 'none'",
   "form-action 'none'",
   "frame-ancestors 'none'",
+  "require-trusted-types-for 'script'",
+  "trusted-types 'none'",
 ].join("; ");
 
 const app = new Hono();

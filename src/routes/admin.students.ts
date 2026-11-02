@@ -322,7 +322,7 @@ app.get("/:id/api-keys", async (c) => {
 
 // --- POST /admin/students/:id/api-keys ---
 const CreateKeySchema = z.object({
-  label: z.string().max(64).optional(),
+  label: z.string().max(64).refine((l) => l !== "web-session", "This label is reserved.").optional(),
 });
 
 app.post("/:id/api-keys", async (c) => {

@@ -95,7 +95,7 @@ app.use("*", async (c, next) => {
   //    Applied after next() so they're set regardless of which handler ran.
   c.header("X-Content-Type-Options", "nosniff");
   c.header("X-Frame-Options", "DENY");
-  c.header("Referrer-Policy", "strict-origin-when-cross-origin");
+  c.header("Referrer-Policy", "no-referrer");
   // Authenticated API responses must never be cached by proxies or browsers
   c.header("Cache-Control", "no-store");
 });

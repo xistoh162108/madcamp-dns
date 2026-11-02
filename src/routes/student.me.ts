@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { requireStudent, type StudentContext } from "../lib/auth.js";
+import { requireStudent, isWebSession, type StudentContext } from "../lib/auth.js";
 import { checkStudentRateLimit } from "../lib/rate-limit.js";
 
 const app = new Hono<{ Variables: { auth: StudentContext } }>();
@@ -7,7 +7,7 @@ const app = new Hono<{ Variables: { auth: StudentContext } }>();
 // --- Middleware: auth + rate limit ---
 app.use("*", async (c, next) => {
   const auth = await requireStudent(c);
-  await checkStudentRateLimit(auth.apiKey.keyHash, c.req.method);
+  await checkStudentRateLimit(auth.apiKey.keyHash, c.req.method, isWebSession(auth.apiKey));
   c.set("auth", auth);
   await next();
 });

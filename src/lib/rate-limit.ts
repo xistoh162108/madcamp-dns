@@ -73,10 +73,15 @@ async function checkBucket(keyHash: string, bucket: string, config: RateLimitCon
   }
 }
 
-export async function checkStudentRateLimit(keyHash: string, method: string): Promise<void> {
-  await checkBucket(keyHash, "total", STUDENT_TOTAL);
+// Web UI sessions load several endpoints per screen refresh, so they get a
+// larger read budget. Writes stay tight. API-key limits are unchanged.
+const WEB_TOTAL: RateLimitConfig = { limit: 120, windowSeconds: 60 };
+const WEB_WRITE: RateLimitConfig = { limit: 30, windowSeconds: 60 };
+
+export async function checkStudentRateLimit(keyHash: string, method: string, webSession = false): Promise<void> {
+  await checkBucket(keyHash, "total", webSession ? WEB_TOTAL : STUDENT_TOTAL);
   if (WRITE_METHODS.has(method.toUpperCase())) {
-    await checkBucket(keyHash, "write", STUDENT_WRITE);
+    await checkBucket(keyHash, "write", webSession ? WEB_WRITE : STUDENT_WRITE);
   }
 }
 
@@ -109,22 +114,31 @@ export async function checkLoginRateLimit(ip: string): Promise<void> {
   await checkBucket(`login:${ip}`, "total", LOGIN_TOTAL);
 }
 
-// Failed-login lockout per account. Only failures are counted (recordFailedLogin),
-// so a team whose members log in often is never locked out by successes.
-export async function assertAccountNotLocked(account: string): Promise<void> {
-  // Compared in SQL: expiresAt is written with NOW() by checkBucket, so it must
-  // be read against the DB clock too, not the Node clock.
+// Failure lockouts. Only failures are counted, so legitimate successful use
+// (a team whose members log in often) never trips them.
+// Compared in SQL: expiresAt is written with NOW() by checkBucket, so it must
+// be read against the DB clock, not the Node clock.
+async function assertNotLocked(key: string, config: RateLimitConfig): Promise<void> {
   const rows = await prisma.$queryRaw<{ retry: number }[]>`
     SELECT CEIL(EXTRACT(EPOCH FROM ("expiresAt" - NOW())))::int AS retry
     FROM "RateLimitLog"
-    WHERE "keyHash" = ${`login-acct:${account}`} AND "bucket" = 'fail'
-      AND "expiresAt" > NOW() AND "count" >= ${LOGIN_PER_ACCOUNT.limit}
+    WHERE "keyHash" = ${key} AND "bucket" = 'fail'
+      AND "expiresAt" > NOW() AND "count" >= ${config.limit}
   `;
   if (rows.length) {
-    throw rateLimited(LOGIN_PER_ACCOUNT.limit, LOGIN_PER_ACCOUNT.windowSeconds, Math.max(1, rows[0].retry));
+    throw rateLimited(config.limit, config.windowSeconds, Math.max(1, rows[0].retry));
   }
 }
 
-export async function recordFailedLogin(account: string): Promise<void> {
-  await checkBucket(`login-acct:${account}`, "fail", { ...LOGIN_PER_ACCOUNT, limit: Number.MAX_SAFE_INTEGER });
+async function recordFailure(key: string, config: RateLimitConfig): Promise<void> {
+  await checkBucket(key, "fail", { ...config, limit: Number.MAX_SAFE_INTEGER });
 }
+
+export const assertAccountNotLocked = (account: string) => assertNotLocked(`login-acct:${account}`, LOGIN_PER_ACCOUNT);
+export const recordFailedLogin = (account: string) => recordFailure(`login-acct:${account}`, LOGIN_PER_ACCOUNT);
+
+// Wrong admin keys: 10 per IP per 15 minutes, then that IP is locked out of
+// /admin/* until the window ends (the normal 120/min admin limit still applies).
+const ADMIN_FAILURES: RateLimitConfig = { limit: 10, windowSeconds: 15 * 60 };
+export const assertAdminNotLocked = (ip: string) => assertNotLocked(`admin-fail:${ip}`, ADMIN_FAILURES);
+export const recordAdminFailure = (ip: string) => recordFailure(`admin-fail:${ip}`, ADMIN_FAILURES);

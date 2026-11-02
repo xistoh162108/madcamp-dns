@@ -5,7 +5,7 @@ import { prisma } from "../db/prisma.js";
 import { requireAdmin } from "../lib/auth.js";
 import { checkAdminRateLimit } from "../lib/rate-limit.js";
 import { auditSafe, getClientIp, getUserAgent } from "../lib/audit.js";
-import { hashPassword, generatePassword } from "../lib/password.js";
+import { hashPassword, generatePasswordFor, passwordProblem, PASSWORD_MIN } from "../lib/password.js";
 import { lockSubdomain, assertSubdomainAvailable } from "../lib/subdomain.js";
 import { invalidRequest, notFound } from "../lib/errors.js";
 import { WEB_SESSION_LABEL } from "./team.auth.js";
@@ -23,7 +23,7 @@ app.use("*", async (c, next) => {
   await next();
 });
 
-const PasswordSchema = z.string().min(10, "Password must be at least 10 characters.").max(256);
+const PasswordSchema = z.string().min(PASSWORD_MIN, `Password must be at least ${PASSWORD_MIN} characters.`).max(256);
 
 const TEAM_EMAIL_SUFFIX = "@team.invalid";
 
@@ -83,7 +83,10 @@ app.post("/", async (c) => {
   if (!parsed.success) throw invalidRequest("Invalid request body.", parsed.error.flatten());
 
   const team = parsed.data.team.trim().toLowerCase();
-  const password = parsed.data.password ?? generatePassword();
+  const account = { subdomain: team, email: `${team}${TEAM_EMAIL_SUFFIX}` };
+  const password = parsed.data.password ?? generatePasswordFor(account);
+  const problem = passwordProblem(password, account);
+  if (problem) throw invalidRequest(problem);
   const passwordHash = await hashPassword(password);
 
   let student;
@@ -129,7 +132,9 @@ app.post("/:team/password", async (c) => {
   if (!parsed.success) throw invalidRequest("Invalid request body.", parsed.error.flatten());
 
   const student = await findTeam(c.req.param("team"));
-  const password = parsed.data.password ?? generatePassword();
+  const password = parsed.data.password ?? generatePasswordFor(student);
+  const problem = passwordProblem(password, student);
+  if (problem) throw invalidRequest(problem);
 
   await prisma.$transaction([
     prisma.student.update({ where: { id: student.id }, data: { passwordHash: await hashPassword(password) } }),

@@ -33,3 +33,24 @@ export function generatePassword(length = 12): string {
   for (const b of bytes) out += PW_ALPHABET[b % PW_ALPHABET.length];
   return out;
 }
+
+export const PASSWORD_MIN = 10;
+
+// Rejects passwords built from the account's own identifiers.
+export function passwordProblem(password: string, account: { subdomain: string; email: string }): string | null {
+  if (password.length < PASSWORD_MIN) return `비밀번호는 ${PASSWORD_MIN}자 이상이어야 합니다.`;
+  const pw = password.toLowerCase();
+  const local = account.email.split("@")[0].toLowerCase();
+  for (const id of [account.subdomain.toLowerCase(), local]) {
+    if (id.length >= 3 && pw.includes(id)) return "비밀번호에 ID나 이메일을 넣을 수 없습니다.";
+  }
+  if (/^(.)\1+$/.test(password)) return "같은 문자만 반복된 비밀번호는 쓸 수 없습니다.";
+  return null;
+}
+
+export function generatePasswordFor(account: { subdomain: string; email: string }): string {
+  for (;;) {
+    const pw = generatePassword();
+    if (!passwordProblem(pw, account)) return pw;
+  }
+}
