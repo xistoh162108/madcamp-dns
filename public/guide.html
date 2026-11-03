@@ -60,7 +60,7 @@
 <h1>DevFest 2026 배포 가이드</h1>
 <p class="lead">DNS 서비스에서 우리 팀 주소를 만들고, Dokploy에 앱을 올려서 <code>https://team1.gdgoc-devfest.org</code> 같은 주소로 공개하는 전 과정을 정리했습니다. 예시의 <code>team1</code>은 각자 팀 ID로 바꿔 읽어 주세요.</p>
 
-<div class="callout warn"><span class="tag">PC 전용</span><div><p>이 가이드는 휴대폰에서도 볼 수 있지만, DNS 서비스 관리 화면(<a href="/">dns.gdgoc-devfest.org</a>)과 Dokploy 작업은 PC 브라우저에서만 열립니다. 휴대폰으로 접속하면 "PC에서 접속해 주세요" 안내만 나옵니다.</p></div></div>
+<div class="callout warn"><span class="tag">PC 전용</span><div><p>이 가이드는 휴대폰에서도 볼 수 있지만, DNS 서비스 관리 화면(<a href="/">dns.gdgoc-devfest.org</a>)은 PC 브라우저에서만 열립니다. 휴대폰으로 접속하면 "PC에서 접속해 주세요" 안내만 나옵니다. Dokploy는 휴대폰에서도 열리긴 하지만 화면이 좁아 설정하기 어려우니 PC로 작업하는 것을 권장합니다.</p></div></div>
 
 <!-- ───────────────────────── 한눈에 보기 ───────────────────────── -->
 <h2 id="overview">한눈에 보기</h2>
@@ -162,11 +162,11 @@
 <p><a href="/">dns.gdgoc-devfest.org</a>에 PC로 접속합니다.</p>
 <figure class="shot"><a href="/ui/guide/dns-login.png" target="_blank" rel="noopener"><img src="/ui/guide/dns-login.png" width="360" height="325" alt="DNS 서비스 로그인 화면" loading="lazy" decoding="async"></a><figcaption>DNS 서비스 로그인 화면</figcaption></figure>
 <ol class="legend">
-  <li>ID: 팀 ID(<code>team1</code>)를 넣습니다. 이메일로 만든 계정이면 이메일을 넣어도 됩니다.</li>
+  <li>ID: 팀 ID(<code>team1</code>) 또는 계정에 등록된 이메일</li>
   <li>비밀번호: 운영진에게 받은 비밀번호</li>
-  <li>로그인. 로그인은 12시간 유지되고, 탭을 닫으면 로그아웃됩니다.</li>
+  <li>로그인. 로그인은 최대 12시간 유지되고 탭을 닫으면 화면에서 로그아웃됩니다. 공용 PC라면 로그아웃 버튼을 꼭 눌러 주세요.</li>
 </ol>
-<div class="callout"><span class="tag">잠금</span><div><p>비밀번호를 15분 안에 10번 틀리면 그 계정은 잠시 로그인이 막힙니다. 15분 뒤 다시 시도하거나 운영진에게 비밀번호 재설정을 요청하세요.</p></div></div>
+<div class="callout"><span class="tag">잠금</span><div><p>비밀번호를 15분 안에 10번 틀리면 그 ID로는 잠시 로그인이 막히고 "Too many requests" 같은 오류가 나옵니다. 최대 15분 기다렸다가 다시 시도하거나, 운영진에게 비밀번호 재설정을 요청하세요.</p></div></div>
 
 <figure class="shot"><a href="/ui/guide/dns-header.png" target="_blank" rel="noopener"><img src="/ui/guide/dns-header.png" width="449" height="132" alt="로그인 직후 맨 위" loading="lazy" decoding="async"></a><figcaption>로그인 직후 맨 위</figcaption></figure>
 <ol class="legend">
@@ -175,7 +175,7 @@
   <li>로그아웃. 옆의 새로고침은 화면 내용을 다시 불러옵니다.</li>
 </ol>
 
-<p>화면은 위에서 아래로 일곱 부분으로 나뉩니다.</p>
+<p>화면은 위에서 아래로 이렇게 나뉩니다. 맨 아래에는 문의 방법이 있습니다.</p>
 <figure class="shot"><a href="/ui/guide/dns-overview.png" target="_blank" rel="noopener"><img src="/ui/guide/dns-overview.png" width="900" height="1128" alt="DNS 서비스 전체 화면" loading="lazy" decoding="async"></a><figcaption>DNS 서비스 전체 화면</figcaption></figure>
 <ol class="legend">
   <li>내 서브도메인: 우리 팀이 쓸 수 있는 주소 목록과 추가 신청 (<a href="#dns-sub">설명</a>)</li>
@@ -207,7 +207,7 @@
 <tr><td class="nw"><code>team1.gdgoc-devfest.org</code> (프론트)</td><td><code>@</code></td><td>CNAME</td><td><code>vps.gdgoc-devfest.org</code></td><td>끔</td></tr>
 <tr><td class="nw"><code>api.team1.gdgoc-devfest.org</code> (백엔드)</td><td><code>api</code></td><td>CNAME</td><td><code>vps.gdgoc-devfest.org</code></td><td>끔</td></tr>
 </table></div>
-<p>CNAME 대신 A 레코드에 IP <code>103.82.65.75</code>를 넣어도 동작합니다. 다만 서버를 옮기면 직접 고쳐야 하므로 CNAME을 권장합니다. 반영까지는 보통 1~5분 걸립니다.</p>
+<p>CNAME 대신 A 레코드에 IP <code>103.82.65.75</code>를 넣어도 동작합니다. 다만 서버를 옮기면 직접 고쳐야 하므로 CNAME을 권장합니다. 반영까지는 보통 1~5분 걸립니다. 레코드를 만들기 전에 그 주소로 접속해 봤다면 "없는 주소"라는 답이 캐시되어 최대 30분까지 걸릴 수 있습니다.</p>
 
 <h3 id="dns-where">어디로 연결할까</h3>
 <div class="tablewrap"><table>
@@ -220,19 +220,20 @@
 <tr><td>직접 운영하는 서버 (공인 IP 있음)</td><td>A</td><td>그 서버의 공인 IPv4</td><td>서버에서 HTTPS 설정 (Caddy, certbot 등)</td></tr>
 <tr><td>공인 IP가 없는 노트북·VM</td><td colspan="2">레코드 대신 <a href="#tunnel">터널</a> 사용</td><td>화면에 나온 설치 명령을 그 컴퓨터에서 실행</td></tr>
 </table></div>
-<div class="callout warn"><span class="tag">외부 인증</span><div><p>Vercel 등이 <code>_vercel</code>처럼 밑줄로 시작하는 TXT 인증을 요구하면 DNS 서비스에서는 만들 수 없습니다. 그 화면을 캡처해서 <a href="#contact">운영진</a>에게 보내 주세요. 운영진이 대신 넣습니다.</p></div></div>
+<div class="callout warn"><span class="tag">외부 인증</span><div><p>Vercel의 <code>_vercel</code>, GitHub Pages의 <code>_github-pages-challenge-…</code>처럼 밑줄로 시작하는 TXT 인증을 요구하면 DNS 서비스에서는 만들 수 없습니다. 그 화면을 캡처해서 <a href="#contact">운영진</a>에게 보내 주세요. 운영진이 대신 넣습니다.</p></div></div>
 
 <h3 id="dns-rules">이름과 값 규칙</h3>
 <div class="tablewrap"><table>
 <tr><th>항목</th><th>규칙</th></tr>
 <tr><td class="nw">레코드 타입</td><td><code>A</code>, <code>AAAA</code>, <code>CNAME</code>, <code>TXT</code>만 됩니다. MX, SRV, CAA는 안 됩니다. 만든 뒤 타입은 바꿀 수 없어서, 바꾸려면 지우고 새로 만듭니다.</td></tr>
 <tr><td class="nw">이름 깊이</td><td>팀 주소 앞에 최대 3단계까지 붙일 수 있습니다. <code>v1.api.web</code>은 되고 그보다 깊으면 거부됩니다.</td></tr>
-<tr><td class="nw">쓸 수 없는 이름</td><td><code>*</code>(와일드카드)와 <code>_</code>로 시작하는 이름(<code>_acme-challenge</code> 등)</td></tr>
-<tr><td class="nw">같은 이름</td><td>같은 이름에 CNAME과 A/AAAA를 함께 둘 수 없고, 같은 타입도 두 개 만들 수 없습니다. 터널 주소로 쓰는 이름에는 레코드를 따로 만들 수 없습니다.</td></tr>
+<tr><td class="nw">쓸 수 있는 글자</td><td>영문, 숫자, 하이픈(<code>-</code>)만 됩니다. <code>*</code>(와일드카드)와 <code>_</code>는 이름 어디에도 쓸 수 없습니다(<code>_acme-challenge</code>, <code>my_app</code> 등).</td></tr>
+<tr><td class="nw">막힌 이름</td><td><code>admin</code>, <code>dns</code>, <code>ns</code>, <code>ns1</code>~<code>ns5</code>, <code>mail</code>, <code>smtp</code>, <code>mx</code>, <code>ftp</code>, <code>ssh</code>, <code>vpn</code>, <code>root</code>, <code>localhost</code>, <code>git</code> 등은 팀 주소 아래에서도 쓸 수 없습니다(<code>admin.team1…</code> 불가). <code>is not allowed</code> 오류가 납니다.</td></tr>
+<tr><td class="nw">같은 이름</td><td>CNAME이 있는 이름에는 다른 레코드(A, AAAA, TXT)를 함께 둘 수 없습니다. 같은 타입도 두 개 만들 수 없습니다. 터널 주소로 쓰는 이름에는 레코드를 따로 만들 수 없습니다. 인증용 TXT가 필요하면 CNAME이 없는 이름에 만드세요.</td></tr>
 <tr><td class="nw">값</td><td>A는 IPv4, AAAA는 IPv6, CNAME은 도메인 이름(IP 불가), TXT는 255자 이하</td></tr>
-<tr><td class="nw">TTL</td><td><code>auto</code>(약 5분) 또는 60~86400초. 특별한 이유가 없으면 auto</td></tr>
+<tr><td class="nw">TTL</td><td>화면에서는 <code>auto</code>(약 5분), 300, 3600 중에서 고릅니다. API로는 1(auto) 또는 60~86400초. 특별한 이유가 없으면 auto</td></tr>
 <tr><td class="nw">한도</td><td>레코드 + 터널 주소 합쳐서 팀당 10개(기본값). 더 필요하면 운영진에게 요청</td></tr>
-<tr><td class="nw">요청 속도</td><td>웹 화면 기준 1분에 읽기 120회, 쓰기 30회. 넘으면 잠시 뒤 다시 시도하라는 오류가 납니다.</td></tr>
+<tr><td class="nw">요청 속도</td><td>웹 화면 기준 1분에 전체 120회(그중 추가·수정·삭제는 30회). 넘으면 잠시 뒤 다시 시도하라는 오류가 납니다.</td></tr>
 </table></div>
 
 <h2 id="dns-edit">DNS 서비스: 수정과 삭제</h2>
@@ -265,19 +266,19 @@
   <li>새로 받은 서브도메인. 이제 레코드 추가와 터널의 서브도메인 선택칸에 나옵니다.</li>
   <li>반납: 그 아래 레코드와 터널 주소를 모두 지워야 반납할 수 있습니다.</li>
 </ol>
-<div class="callout danger"><span class="tag">예약된 이름</span><div><p><code>www</code>, <code>api</code>, <code>dns</code>, <code>login</code>, <code>admin</code>, <code>official</code>, <code>support</code> 같은 이름과, <code>google</code>, <code>gdgoc</code>, <code>kaist</code>, <code>official</code>, <code>login</code>, <code>admin</code>, <code>password</code>가 들어간 이름(<code>google-login</code> 등)은 신청할 수 없습니다. 공식 서비스처럼 보이는 주소를 막기 위해서입니다. 팀 주소 안쪽(<code>api.team1…</code>)에는 이 제한이 없습니다.</p></div></div>
+<div class="callout danger"><span class="tag">예약된 이름</span><div><p><code>www</code>, <code>api</code>, <code>dns</code>, <code>login</code>, <code>admin</code>, <code>official</code>, <code>support</code> 같은 이름과, <code>google</code>, <code>gdgoc</code>, <code>kaist</code>, <code>admin</code>, <code>password</code>가 들어간 이름(<code>google-login</code> 등)은 신청할 수 없습니다. 공식 서비스처럼 보이는 주소를 막기 위해서입니다. 팀 주소 안쪽(<code>api.team1…</code>, <code>www.team1…</code>)은 대부분 자유롭게 쓸 수 있고, <a href="#dns-rules">막힌 이름</a> 몇 개만 안 됩니다.</p></div></div>
 
 <h2 id="dns-check">DNS가 됐는지 확인</h2>
 <p>레코드를 만들고 몇 분 지나면 터미널에서 확인할 수 있습니다. 아래처럼 <code>vps.gdgoc-devfest.org</code>와 <code>103.82.65.75</code>가 나오면 정상입니다.</p>
-<div class="term"><div class="bar"><i></i><i></i><i></i><span>macOS / Linux</span></div><pre><span class="p">$ </span><span class="c">dig +short team1.gdgoc-devfest.org</span>
+<div class="term"><div class="bar"><i></i><i></i><i></i><span>macOS / Linux</span></div><pre><span class="p">$ </span><span class="c">dig +short team1.gdgoc-devfest.org @1.1.1.1</span>
 vps.gdgoc-devfest.org.
 103.82.65.75</pre></div>
-<div class="term"><div class="bar"><i></i><i></i><i></i><span>Windows (PowerShell)</span></div><pre><span class="p">PS&gt; </span><span class="c">nslookup team1.gdgoc-devfest.org</span>
+<div class="term"><div class="bar"><i></i><i></i><i></i><span>Windows (PowerShell)</span></div><pre><span class="p">PS&gt; </span><span class="c">nslookup team1.gdgoc-devfest.org 1.1.1.1</span>
 <span class="m">...</span>
 Name:    vps.gdgoc-devfest.org
 Address:  103.82.65.75
 Aliases:  team1.gdgoc-devfest.org</pre></div>
-<p>아무것도 안 나오면 아직 반영 전이거나 레코드 이름이 틀린 것입니다. 5분 정도 기다렸다가 다시 해 보고, 그래도 안 되면 DNS 서비스 레코드 목록의 Name 칸을 확인하세요. proxy를 켠 레코드는 Cloudflare IP(<code>104.x</code>, <code>172.x</code> 등)가 나오는 것이 정상입니다.</p>
+<p>끝에 붙인 <code>1.1.1.1</code>은 Cloudflare 공용 DNS에 직접 묻는다는 뜻이라 반영이 가장 빨리 보입니다. 아무것도 안 나오면 아직 반영 전이거나 레코드 이름이 틀린 것입니다. 몇 분 기다렸다가 다시 해 보고, 그래도 안 되면 DNS 서비스 레코드 목록의 Name 칸을 확인하세요. proxy를 켠 레코드는 Cloudflare IP(<code>104.x</code>, <code>172.x</code> 등)가 나오는 것이 정상입니다.</p>
 
 <!-- ───────────────────────── Dokploy ───────────────────────── -->
 <h2 id="dok-login">Dokploy: 로그인과 프로젝트</h2>
@@ -327,7 +328,7 @@ Aliases:  team1.gdgoc-devfest.org</pre></div>
 
 <h4>3. (Dockerfile을 쓴다면) 로컬에서 이미지가 뜨는지</h4>
 <p>Dockerfile이 없다면 이 단계는 건너뛰어도 됩니다. Dokploy가 Nixpacks로 알아서 빌드합니다. 직접 쓰고 싶다면 Node 앱 기준으로 아래 정도면 충분합니다.</p>
-<div class="term"><div class="bar"><i></i><i></i><i></i><span>Dockerfile</span></div><pre>FROM node:20-alpine
+<div class="term"><div class="bar"><i></i><i></i><i></i><span>Dockerfile</span></div><pre>FROM node:22-alpine
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -429,12 +430,12 @@ CORS_ORIGIN=https://team1.gdgoc-devfest.org</pre></div>
   <li>Container Port: 앱이 듣는 포트 (<a href="#dok-build">Build Type 표</a>의 마지막 열. 예: <code>3000</code>, 정적 사이트는 <code>80</code>)</li>
   <li>HTTPS: 켭니다. 켜면 아래에 Certificate 칸이 나오고 <code>letsencrypt</code>를 고릅니다.</li>
 </ol>
-<p>Internal Path, Strip Path, Custom Entrypoint는 건드리지 않습니다. 저장한 뒤 위쪽 Deploy를 한 번 더 누르고, 1~2분 뒤 브라우저에서 <code>https://team1.gdgoc-devfest.org</code>를 엽니다.</p>
+<p>Internal Path, Strip Path, Custom Entrypoint는 건드리지 않습니다. 저장한 뒤 위쪽 Deploy를 한 번 더 누르고(Application은 저장만으로 반영되기도 하지만, 눌러 두면 확실합니다. Compose는 반드시 눌러야 합니다), 1~2분 뒤 브라우저에서 <code>https://team1.gdgoc-devfest.org</code>를 엽니다.</p>
 <div class="term"><div class="bar"><i></i><i></i><i></i><span>터미널로 확인</span></div><pre><span class="p">$ </span><span class="c">curl -I https://team1.gdgoc-devfest.org</span>
 <span class="g">HTTP/2 200</span>
 content-type: text/html; charset=utf-8
 <span class="m">...</span></pre></div>
-<p>인증서는 처음 접속할 때 발급되므로, 첫 접속에서 잠깐 '안전하지 않음'이 보일 수 있습니다. 1~2분 뒤 새로고침하세요.</p>
+<p>Domains를 저장하면 그때 인증서 발급이 시작되고 1~2분 걸립니다. 그 사이 접속하면 잠깐 '안전하지 않음'이 보일 수 있으니 조금 뒤 새로고침하세요. DNS 레코드가 아직 반영되지 않았으면 발급이 실패하므로, <a href="#dns-check">DNS 확인</a>이 된 뒤에 Domains를 추가하는 것이 안전합니다.</p>
 <details><summary>안 열릴 때 확인 순서</summary>
 <ol>
   <li>DNS 서비스 레코드 목록에 그 주소가 있고 proxy가 꺼져 있는가 (<a href="#dns-check">dig로 확인</a>)</li>
@@ -494,7 +495,7 @@ volumes:
 <div class="callout danger"><span class="tag">Compose 규칙</span><div><ul>
   <li><code>ports:</code> 대신 <code>expose:</code>를 씁니다. <code>ports: - "3000:3000"</code>은 서버 포트를 직접 차지해서 다른 팀과 충돌합니다.</li>
   <li><code>privileged: true</code>, <code>network_mode: host</code>, <code>/var/run/docker.sock</code>이나 호스트 경로(<code>/</code>, <code>/root</code> 등) 마운트는 쓰지 않습니다. 발견되면 운영진이 서비스를 내립니다.</li>
-  <li>서비스끼리는 서비스 이름으로 접속합니다 (예: 백엔드에서 <code>db:5432</code>).</li>
+  <li>서비스끼리는 서비스 이름으로 접속합니다 (예: 백엔드에서 <code>db:5432</code>). 도메인을 붙인 서비스는 다른 팀과 같은 공용 네트워크에도 연결되므로, <code>web</code>, <code>api</code>, <code>db</code> 같은 흔한 이름은 다른 팀 컨테이너와 헷갈릴 수 있습니다. <code>team1-web</code>, <code>team1-api</code>, <code>team1-db</code>처럼 팀 ID를 앞에 붙여 주세요. 위 예시도 실제로 쓸 때는 이렇게 바꾸는 것을 권장합니다.</li>
   <li>남길 데이터는 이름 있는 볼륨(named volume)에 둡니다.</li>
   <li><code>${DB_PASSWORD}</code> 같은 값은 Compose의 Environment 탭에 넣습니다.</li>
 </ul></div></div>
@@ -580,7 +581,7 @@ volumes:
 
 <h3>1. cloudflared 설치 (컴퓨터당 한 번)</h3>
 <div class="term"><div class="bar"><i></i><i></i><i></i><span>Ubuntu / Debian</span></div><pre><span class="p">$ </span><span class="c">uname -m</span>
-x86_64                <span class="m"># x86_64면 amd64, aarch64면 arm64</span>
+x86_64                <span class="m"># x86_64면 아래 주소 그대로, aarch64면 amd64를 arm64로 바꿉니다</span>
 <span class="p">$ </span><span class="c">curl -L -o cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb</span>
 <span class="p">$ </span><span class="c">sudo dpkg -i cloudflared.deb</span>
 <span class="p">$ </span><span class="c">cloudflared --version</span>
@@ -602,10 +603,10 @@ cloudflared version 2026.x.x <span class="m">(built ...)</span></pre></div>
   <li>닫기: 명령을 화면에서 지웁니다.</li>
   <li>설치 명령 보기: 컴퓨터를 바꾸거나 다시 설치할 때 언제든 명령을 다시 볼 수 있습니다.</li>
 </ol>
-<div class="callout danger"><span class="tag">토큰 주의</span><div><p>이 토큰이 있으면 누구든 우리 주소로 들어오는 요청을 자기 컴퓨터로 받을 수 있습니다. 단톡방, GitHub, 발표 화면에 노출하지 마세요. 노출됐다면 바로 운영진에게 알려 주세요.</p></div></div>
+<div class="callout danger"><span class="tag">토큰 주의</span><div><p>이 토큰이 있으면 누구든 우리 주소로 들어오는 요청을 자기 컴퓨터로 받을 수 있습니다. 단톡방, GitHub, 발표 화면에 노출하지 마세요. 노출됐다면 바로 운영진에게 알려 주세요. 같은 토큰으로 컴퓨터 두 대에서 cloudflared를 켜면 요청이 두 컴퓨터에 나뉘어 들어가니, 한 번에 한 대만 켜 두세요.</p></div></div>
 
 <h3>3. 내 컴퓨터에서 cloudflared 실행</h3>
-<p>두 가지 방법 중 하나를 고릅니다. 서버처럼 계속 켜 둘 VM이면 서비스로 등록하고, 노트북에서 데모할 때만 켤 거라면 직접 실행이 편합니다.</p>
+<p>두 가지 방법 중 하나를 고릅니다. 서버처럼 계속 켜 둘 VM이면 서비스로 등록하고, 노트북에서 데모할 때만 켤 거라면 직접 실행이 편합니다. Windows에서는 관리자 PowerShell을 열고 명령 맨 앞의 <code>sudo</code>를 빼고 실행합니다.</p>
 <div class="term"><div class="bar"><i></i><i></i><i></i><span>방법 A. 서비스로 등록 (VM, 재부팅해도 자동 연결)</span></div><pre><span class="p">$ </span><span class="c">sudo cloudflared service install eyJhIjoi...(화면의 토큰)</span>
 <span class="m">INF Using Systemd</span>
 <span class="m">INF Linux service for cloudflared installed successfully</span>
@@ -619,11 +620,11 @@ cloudflared version 2026.x.x <span class="m">(built ...)</span></pre></div>
 <span class="m">INF Starting tunnel tunnelID=...</span>
 <span class="m">INF Registered tunnel connection connIndex=0 ... protocol=quic</span>
 <span class="m">INF Registered tunnel connection connIndex=1 ... protocol=quic</span></pre></div>
-<p><code>Registered tunnel connection</code>이 보이면 Cloudflare와 연결된 것입니다. 회사·학교 네트워크에서 QUIC(UDP)이 막혀 연결이 안 되면 <code>--protocol http2</code>를 붙여 실행해 보세요.</p>
+<p><code>Registered tunnel connection</code>이 보이면 Cloudflare와 연결된 것입니다. cloudflared는 QUIC(UDP)이 막힌 네트워크에서 보통 알아서 HTTP/2로 바꿔 연결합니다. 그래도 연결이 안 되면 마지막 수단으로 방법 B에 <code>--protocol http2</code>를 붙여 실행해 보세요.</p>
 <div class="term"><div class="bar"><i></i><i></i><i></i><span>QUIC이 막힌 네트워크</span></div><pre><span class="p">$ </span><span class="c">cloudflared tunnel --protocol http2 run --token eyJhIjoi...</span></pre></div>
 
 <h3>4. 주소와 포트 연결</h3>
-<p>내 컴퓨터에서 앱을 먼저 띄워 둡니다(예: <code>npm start</code>로 3000번). 그다음 DNS 서비스에서 주소를 붙입니다.</p>
+<p>내 컴퓨터에서 앱을 먼저 띄워 둡니다(예: <code>npm start</code>로 3000번). cloudflared는 <code>127.0.0.1</code>(IPv4)로 접속하므로, 앱이 <code>127.0.0.1</code>이나 <code>0.0.0.0</code>에서 들어야 합니다. 일부 Vite·Node 설정은 <code>localhost</code>를 IPv6(<code>::1</code>)로만 열어서 502가 나는데, 이때는 <code>--host 127.0.0.1</code>처럼 주소를 지정하세요. 그다음 DNS 서비스에서 주소를 붙입니다.</p>
 <figure class="shot"><a href="/ui/guide/tunnel-host.png" target="_blank" rel="noopener"><img src="/ui/guide/tunnel-host.png" width="690" height="214" alt="터널에 주소 추가" loading="lazy" decoding="async"></a><figcaption>터널에 주소 추가</figcaption></figure>
 <ol class="legend">
   <li>이름: <code>@</code>면 팀 주소 자체, <code>demo</code>면 <code>demo.team1…</code>. 이미 레코드로 쓰고 있는 이름은 쓸 수 없습니다.</li>
@@ -638,7 +639,7 @@ cloudflared version 2026.x.x <span class="m">(built ...)</span></pre></div>
   <li>Local port: 연결된 내 컴퓨터의 포트</li>
   <li>삭제: 이 주소의 연결을 끊습니다. 터널 자체와 다른 주소는 그대로 남습니다.</li>
 </ol>
-<div class="term"><div class="bar"><i></i><i></i><i></i><span>확인</span></div><pre><span class="p">$ </span><span class="c">curl -I http://localhost:3000</span>          <span class="m"># 내 컴퓨터에서 앱이 떠 있는지</span>
+<div class="term"><div class="bar"><i></i><i></i><i></i><span>확인</span></div><pre><span class="p">$ </span><span class="c">curl -I http://127.0.0.1:3000</span>          <span class="m"># 내 컴퓨터에서 앱이 떠 있는지</span>
 HTTP/1.1 200 OK
 <span class="p">$ </span><span class="c">curl -I https://demo.team1.gdgoc-devfest.org</span>   <span class="m"># 바깥에서 터널로 들어오는지</span>
 <span class="g">HTTP/2 200</span>
@@ -659,7 +660,7 @@ server: cloudflare</pre></div>
 <div class="tablewrap"><table>
 <tr><th>증상</th><th>확인할 것</th></tr>
 <tr><td>Cloudflare 오류 1033</td><td><code>cloudflared</code>가 꺼져 있거나 연결 전입니다. <code>systemctl status cloudflared</code> 또는 직접 실행한 창을 확인하세요.</td></tr>
-<tr><td>502 Bad Gateway</td><td>등록한 포트에서 앱이 안 떠 있습니다. 내 컴퓨터에서 <code>curl -I http://localhost:포트</code>로 확인하세요.</td></tr>
+<tr><td>502 Bad Gateway</td><td>등록한 포트에서 앱이 안 떠 있거나 IPv6로만 떠 있습니다. 내 컴퓨터에서 <code>curl -I http://127.0.0.1:포트</code>로 확인하세요.</td></tr>
 <tr><td><code>Registered tunnel connection</code>이 안 나옴</td><td>네트워크가 막혔을 수 있습니다. <code>--protocol http2</code>로 다시 실행하세요.</td></tr>
 <tr><td>컴퓨터를 바꿨다</td><td>새 컴퓨터에서 1번(설치)부터 하고, DNS 서비스의 "설치 명령 보기"로 명령을 다시 받아 실행합니다. 예전 컴퓨터의 cloudflared는 끄세요. 두 대가 동시에 켜져 있으면 요청이 섞입니다.</td></tr>
 </table></div>
@@ -706,6 +707,9 @@ app.use(express.static("dist", { maxAge: 0 }));</pre></div>
 <div class="term"><div class="bar"><i></i><i></i><i></i><span>nginx 예시 (정적 사이트를 nginx 컨테이너로 띄울 때)</span></div><pre>location /assets/ {
     add_header Cache-Control "public, max-age=31536000, immutable";
 }
+location ~* \.(png|jpe?g|webp|avif|gif|svg|ico)$ {
+    add_header Cache-Control "public, max-age=86400";
+}
 location / {
     try_files $uri /index.html;
     add_header Cache-Control "no-cache";
@@ -743,7 +747,7 @@ cache-control: public, max-age=31536000, immutable</pre></div>
 <ol>
   <li>먼저 proxy를 끈 채로 <a href="#dok-domain">Dokploy 도메인과 HTTPS</a>를 끝내고, <code>https://</code>로 잘 열리는지 확인합니다. Let's Encrypt 첫 인증서는 proxy가 꺼져 있어야 확실하게 발급됩니다.</li>
   <li>그다음 DNS 서비스 레코드 목록에서 수정 → proxy 체크 → 저장합니다.</li>
-  <li>몇 분 뒤 응답 헤더에 <code>cf-cache-status</code>가 보이면 캐시를 거치고 있는 것입니다.</li>
+  <li>몇 분 뒤 응답 헤더에 <code>server: cloudflare</code>가 보이면 Cloudflare를 거치고 있는 것이고, 정적 파일에서 <code>cf-cache-status: HIT</code>가 보이면 캐시에서 나온 것입니다. HTML이나 API는 <code>DYNAMIC</code>으로 나오는 것이 정상입니다.</li>
 </ol>
 </div></div>
 <div class="term"><div class="bar"><i></i><i></i><i></i><span>캐시 확인</span></div><pre><span class="p">$ </span><span class="c">curl -sI https://team1.gdgoc-devfest.org/logo.png | grep -i -E "server|cf-cache-status"</span>
@@ -822,7 +826,7 @@ cf-cache-status: <span class="g">HIT</span>      <span class="m"># MISS면 처�
   <li>현재 비밀번호</li>
   <li>새 비밀번호: 10자 이상, ID나 이메일이 들어가면 안 되고 한 글자 반복도 안 됩니다.</li>
   <li>확인: 새 비밀번호 한 번 더</li>
-  <li>변경: 바꾸면 지금 창을 뺀 다른 로그인은 모두 끊깁니다. 팀이 같이 쓰는 계정이면 바꾼 비밀번호를 팀원에게 꼭 공유해 주세요.</li>
+  <li>변경: 바꾸면 지금 창을 뺀 다른 웹 로그인은 모두 끊깁니다. API 키는 그대로 쓸 수 있으니, 키가 새어 나갔다면 <a href="#apikey">새 키 발급</a>도 같이 하세요. 팀이 같이 쓰는 계정이면 바꾼 비밀번호를 팀원에게 꼭 공유해 주세요.</li>
 </ol>
 
 <!-- ───────────────────────── 규칙 ───────────────────────── -->
@@ -834,7 +838,7 @@ cf-cache-status: <span class="g">HIT</span>      <span class="m"># MISS면 처�
   <li>권한 높은 설정을 쓰지 않습니다. <code>privileged</code>, <code>network_mode: host</code>, Docker 소켓·호스트 경로 마운트는 금지입니다.</li>
   <li>비밀값은 GitHub에 올리지 않습니다. API 키와 비밀번호는 Dokploy Environment에만 넣습니다.</li>
   <li>자원을 아껴 씁니다. 개발 서버로 띄우지 말고, 안 쓰는 서비스는 Stop하고, 여러 앱을 동시에 빌드하지 않습니다.</li>
-  <li>주소는 필요한 만큼만 만듭니다. HTTPS 인증서는 도메인 전체 기준으로 주당 발급 한도가 있어서, 주소를 마구 만들었다 지우면 다른 팀까지 인증서를 못 받습니다.</li>
+  <li>Dokploy Domains는 필요한 만큼만 추가합니다. Let's Encrypt 인증서는 <code>gdgoc-devfest.org</code> 전체를 합쳐 주당 50개까지만 발급되므로, Domains를 마구 추가했다 지우면 다른 팀까지 인증서를 못 받습니다.</li>
   <li>계정과 토큰은 팀 안에서만 공유합니다. DNS·Dokploy 비밀번호, API 키, 터널 토큰, Webhook URL을 다른 팀이나 공개된 곳에 올리지 마세요.</li>
 </ol>
 <p>운영진은 규칙을 어긴 서비스를 사전 안내 없이 멈출 수 있습니다.</p>
@@ -846,7 +850,7 @@ cf-cache-status: <span class="g">HIT</span>      <span class="m"># MISS면 처�
 <tr><td>휴대폰에서 DNS 서비스가 안 열림</td><td>관리 화면은 PC 전용</td><td>PC 브라우저로 접속</td></tr>
 <tr><td><code>404 page not found</code></td><td>Dokploy Domains에 그 Host가 없거나 철자가 다름</td><td>Host를 DNS 레코드 주소와 똑같이 맞추고 Deploy</td></tr>
 <tr><td><code>Bad Gateway</code> (502)</td><td>Container Port가 틀렸거나 앱이 <code>localhost</code>에서만 들음</td><td>포트를 Logs에 나온 값으로 고치고, 앱을 <code>0.0.0.0</code>에서 듣게 수정 (<a href="#dok-prepare">시작 명령 표</a>)</td></tr>
-<tr><td>주소 자체가 안 열림 (DNS 오류)</td><td>레코드가 없거나 아직 반영 전</td><td><a href="#dns-check">dig로 확인</a>, 5분 기다린 뒤 다시 시도</td></tr>
+<tr><td>주소 자체가 안 열림 (DNS 오류)</td><td>레코드가 없거나 아직 반영 전</td><td><a href="#dns-check">dig로 확인</a>, 몇 분 기다린 뒤 다시 시도 (최대 30분)</td></tr>
 <tr><td>'안전하지 않음' 경고가 계속됨</td><td>첫 인증서 발급 때 proxy가 켜져 있었거나 발급 실패</td><td>proxy 끄기 → Deploy 다시. 30분 넘게 계속되면 운영진 문의</td></tr>
 <tr><td>'리디렉션이 너무 많습니다'</td><td>proxy를 켠 뒤 생기는 HTTPS 설정 충돌</td><td>proxy 끄고 운영진 문의</td></tr>
 <tr><td>빌드 실패</td><td>의존성 설치 실패, 빌드 명령 오류, 메모리 부족</td><td>Deployments → View 맨 아래 에러 확인. 로컬에서 <code>npm run build</code>가 되는지 먼저 확인</td></tr>
@@ -854,11 +858,11 @@ cf-cache-status: <span class="g">HIT</span>      <span class="m"># MISS면 처�
 <tr><td>프론트에서 API 호출이 막힘</td><td>CORS 또는 API 주소를 <code>localhost</code>로 씀</td><td>API 주소를 <code>https://api.team1…</code>로, 백엔드 CORS에 프론트 주소 추가</td></tr>
 <tr><td>환경 변수를 바꿨는데 그대로</td><td>저장만 하고 배포 안 함</td><td>Save 후 Deploy</td></tr>
 <tr><td>페이지가 유독 느림</td><td>큰 이미지·파일을 호주 서버에서 직접 받음</td><td><a href="#cache">속도와 캐시</a> 참고</td></tr>
-<tr><td>DNS 화면 <code>is reserved</code></td><td>예약된 이름</td><td>다른 이름 사용</td></tr>
-<tr><td>DNS 화면 <code>cannot coexist</code></td><td>같은 이름에 CNAME과 A를 함께 만들려 함</td><td>기존 레코드를 지우고 새로 만들기</td></tr>
+<tr><td>DNS 화면 <code>is reserved</code> 또는 <code>is not allowed</code></td><td>예약되거나 막힌 이름 (<a href="#dns-rules">규칙</a>)</td><td>다른 이름 사용</td></tr>
+<tr><td>DNS 화면 <code>cannot coexist</code>, 또는 CNAME 옆에 TXT를 만들 때 Cloudflare 오류</td><td>CNAME이 있는 이름에 다른 레코드를 만들려 함</td><td>기존 레코드를 지우고 새로 만들거나, 다른 이름 사용</td></tr>
 <tr><td>DNS 화면 <code>limit</code> 관련 오류</td><td>레코드 + 터널 주소가 한도에 닿음</td><td>안 쓰는 것을 지우거나 운영진에게 한도 요청</td></tr>
 <tr><td>DNS 화면 <code>Too many requests</code></td><td>짧은 시간에 너무 많이 누름</td><td>1분 뒤 다시 시도</td></tr>
-<tr><td>로그인이 안 됨</td><td>비밀번호 오류 또는 잠금</td><td>15분 뒤 다시 시도, 계속되면 운영진에게 재설정 요청</td></tr>
+<tr><td>로그인이 안 됨, <code>Too many requests</code></td><td>비밀번호 오류 또는 10번 틀려서 잠김</td><td>최대 15분 뒤 다시 시도, 계속되면 운영진에게 재설정 요청</td></tr>
 </table></div>
 
 <h2 id="contact">문의</h2>
