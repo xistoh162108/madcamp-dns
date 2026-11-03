@@ -27,10 +27,11 @@
     UI.show("login-view", !token);
     UI.show("app-view", !!token);
     hideInstall();
+    if (!token) clearNewKey();
     if (token) load();
     else {
       me = null;
-      ["records", "tunnels", "subdomains"].forEach(function (id) { $(id).textContent = ""; });
+      ["records", "tunnels", "subdomains", "keys"].forEach(function (id) { $(id).textContent = ""; });
     }
   }
 
@@ -50,7 +51,7 @@
     show();
   };
   $("reload").onclick = function () {
-    clearErrors(["list-msg", "tunnel-msg", "sub-msg", "add-msg", "pw-msg"]);
+    clearErrors(["list-msg", "tunnel-msg", "sub-msg", "add-msg", "pw-msg", "key-msg"]);
     load();
   };
 
@@ -70,6 +71,7 @@
     renderSubdomains(r[1]);
     renderRecords(r[2].records);
 
+    loadKeys(seq);
     var hostCount = await loadTunnel(seq);
     if (seq !== loadSeq) return;
     $("usage").textContent = (me.name ? me.name + " · " : "") + "레코드 " + r[2].records.length +
@@ -353,6 +355,71 @@
       load();
     } catch (e) { msg("tunnel-msg", e.message); }
   });
+
+  // ── API keys ───────────────────────────────────────────────────────
+  // A newly issued key lives only in this variable: it is never stored in the
+  // browser and disappears on reload, close, logout or "닫기".
+  var newKey = null, newKeyShown = false;
+
+  function renderNewKey() {
+    UI.show("newkey-box", !!newKey);
+    if (!newKey) { $("newkey-text").textContent = ""; return; }
+    var masked = newKey.slice(0, 7) + "•".repeat(16) + newKey.slice(-4);
+    $("newkey-text").textContent = newKeyShown ? newKey : masked;
+    $("newkey-toggle").textContent = newKeyShown ? "가리기" : "보기";
+  }
+  function clearNewKey() { newKey = null; newKeyShown = false; $("newkey-msg").textContent = ""; renderNewKey(); }
+
+  async function loadKeys(seq) {
+    try {
+      var d = await api("GET", "/v1/me/api-keys");
+      if (seq !== loadSeq || !token) return;
+      var tbody = $("keys");
+      tbody.textContent = "";
+      d.apiKeys.forEach(function (k) {
+        var tr = tbody.insertRow();
+        cell(tr, k.keyPrefix + "…");
+        cell(tr, k.label || "");
+        cell(tr, k.isActive ? "사용 중" : "폐기됨");
+        cell(tr, UI.date(k.lastUsedAt) || "-");
+        cell(tr, UI.date(k.createdAt));
+      });
+      if (!d.apiKeys.length) UI.emptyRow(tbody, 5, "발급된 키가 없습니다.");
+    } catch (e) { if (seq === loadSeq) msg("key-msg", e.message); }
+  }
+
+  $("key-reissue").onclick = function () {
+    return busy(this, async function () {
+      if (!confirm("새 API 키를 발급할까요? 지금 쓰고 있는 API 키는 모두 바로 폐기됩니다.")) return;
+      msg("key-msg", "");
+      try {
+        var d = await api("POST", "/v1/me/api-keys/rotate");
+        newKey = d.apiKey;
+        newKeyShown = false;
+        renderNewKey();
+        loadKeys(loadSeq);
+      } catch (e) { msg("key-msg", e.message); }
+    });
+  };
+  $("newkey-toggle").onclick = function () { newKeyShown = !newKeyShown; renderNewKey(); };
+  $("newkey-close").onclick = function () {
+    if (!confirm("닫으면 이 키를 다시 볼 수 없습니다. 복사해 두셨나요?")) return;
+    clearNewKey();
+  };
+  $("newkey-copy").onclick = async function () {
+    if (!newKey) return;
+    try {
+      await navigator.clipboard.writeText(newKey);
+      $("newkey-msg").textContent = "복사했습니다.";
+    } catch (e) {
+      newKeyShown = true;
+      renderNewKey();
+      var r = document.createRange();
+      r.selectNodeContents($("newkey-text"));
+      var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      $("newkey-msg").textContent = "자동 복사가 막혀 있어 키를 선택해 두었습니다. Ctrl+C(⌘+C)로 복사하세요.";
+    }
+  };
 
   // ── Password ───────────────────────────────────────────────────────
   UI.onSubmit($("pw-form"), async function (pf) {
