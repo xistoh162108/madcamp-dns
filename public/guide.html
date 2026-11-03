@@ -166,7 +166,7 @@
 <!-- ───────────────────────── DNS ───────────────────────── -->
 <h2 id="dns-login">DNS 서비스: 로그인과 화면 구성</h2>
 <p><a href="/">dns.gdgoc-devfest.org</a>에 PC로 접속합니다.</p>
-<figure class="shot"><a href="/ui/guide/dns-login.png" target="_blank" rel="noopener"><img src="/ui/guide/dns-login.png" width="360" height="325" alt="DNS 서비스 로그인 화면" loading="lazy" decoding="async"></a><figcaption>DNS 서비스 로그인 화면</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dns-login.png" width="360" height="325" alt="DNS 서비스 로그인 화면" loading="lazy" decoding="async"></div><figcaption>DNS 서비스 로그인 화면</figcaption></figure>
 <ol class="legend">
   <li>ID: 팀 ID(<code>team1</code>) 또는 계정에 등록된 이메일</li>
   <li>비밀번호: 운영진에게 받은 비밀번호</li>
@@ -174,7 +174,7 @@
 </ol>
 <div class="callout"><span class="tag">잠금</span><div><p>비밀번호를 15분 안에 10번 틀리면 그 ID로는 잠시 로그인이 막히고 "Too many requests" 같은 오류가 나옵니다. 최대 15분 기다렸다가 다시 시도하거나, 운영진에게 비밀번호 재설정을 요청하세요.</p></div></div>
 
-<figure class="shot"><a href="/ui/guide/dns-header.png" target="_blank" rel="noopener"><img src="/ui/guide/dns-header.png" width="449" height="132" alt="로그인 직후 맨 위" loading="lazy" decoding="async"></a><figcaption>로그인 직후 맨 위</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dns-header.png" width="449" height="132" alt="로그인 직후 맨 위" loading="lazy" decoding="async"></div><figcaption>로그인 직후 맨 위</figcaption></figure>
 <ol class="legend">
   <li>우리 팀 주소</li>
   <li>사용량: 만든 레코드와 터널 주소를 합친 개수 / 한도(기본 10개)</li>
@@ -182,7 +182,7 @@
 </ol>
 
 <p>화면은 위에서 아래로 이렇게 나뉩니다. 맨 아래에는 문의 방법이 있습니다.</p>
-<figure class="shot"><a href="/ui/guide/dns-overview.png" target="_blank" rel="noopener"><img src="/ui/guide/dns-overview.png" width="900" height="1128" alt="DNS 서비스 전체 화면" loading="lazy" decoding="async"></a><figcaption>DNS 서비스 전체 화면</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dns-overview.png" width="900" height="1128" alt="DNS 서비스 전체 화면" loading="lazy" decoding="async"></div><figcaption>DNS 서비스 전체 화면</figcaption></figure>
 <ol class="legend">
   <li>내 서브도메인: 우리 팀이 쓸 수 있는 주소 목록과 추가 신청 (<a href="#dns-sub">설명</a>)</li>
   <li>레코드 추가: 주소가 어디를 가리킬지 새로 만듭니다 (<a href="#dns-record">설명</a>)</li>
@@ -195,7 +195,7 @@
 
 <h2 id="dns-record">DNS 서비스: 레코드 추가</h2>
 <p>레코드는 "이 주소는 저기로 가라"는 한 줄짜리 규칙입니다. Dokploy에 올릴 거라면 아래처럼 한 줄이면 됩니다.</p>
-<figure class="shot"><a href="/ui/guide/dns-add.png" target="_blank" rel="noopener"><img src="/ui/guide/dns-add.png" width="900" height="121" alt="레코드 추가 줄 (Dokploy 서버로 연결하는 예)" loading="lazy" decoding="async"></a><figcaption>레코드 추가 줄 (Dokploy 서버로 연결하는 예)</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dns-add.png" width="900" height="121" alt="레코드 추가 줄 (Dokploy 서버로 연결하는 예)" loading="lazy" decoding="async"></div><figcaption>레코드 추가 줄 (Dokploy 서버로 연결하는 예)</figcaption></figure>
 <ol class="legend">
   <li>이름: <code>@</code>는 팀 주소 자체(<code>team1.gdgoc-devfest.org</code>)입니다. <code>api</code>를 넣으면 <code>api.team1.gdgoc-devfest.org</code>가 됩니다.</li>
   <li>서브도메인: 기본은 우리 팀 주소입니다. 추가로 신청한 서브도메인이 있으면 여기서 고릅니다.</li>
@@ -263,14 +263,14 @@ EOF</span>
 </table></div>
 
 <h2 id="dns-edit">DNS 서비스: 수정과 삭제</h2>
-<figure class="shot"><a href="/ui/guide/dns-records.png" target="_blank" rel="noopener"><img src="/ui/guide/dns-records.png" width="900" height="127" alt="레코드 목록" loading="lazy" decoding="async"></a><figcaption>레코드 목록</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dns-records.png" width="900" height="127" alt="레코드 목록" loading="lazy" decoding="async"></div><figcaption>레코드 목록</figcaption></figure>
 <ol class="legend">
   <li>Name (주소): 실제 주소입니다. 누르면 새 탭에서 열립니다.</li>
   <li>Target (가리키는 곳): 이 주소가 연결된 곳</li>
   <li>수정: 이름, 값, TTL, proxy를 바꿉니다.</li>
   <li>삭제: 확인 창이 뜬 뒤 지워집니다.</li>
 </ol>
-<figure class="shot"><a href="/ui/guide/dns-edit.png" target="_blank" rel="noopener"><img src="/ui/guide/dns-edit.png" width="900" height="138" alt="수정 중인 줄" loading="lazy" decoding="async"></a><figcaption>수정 중인 줄</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dns-edit.png" width="900" height="138" alt="수정 중인 줄" loading="lazy" decoding="async"></div><figcaption>수정 중인 줄</figcaption></figure>
 <ol class="legend">
   <li>이름 칸. 아래 회색 글씨로 바뀔 주소와 연결될 곳이 바로 보입니다.</li>
   <li>값 칸</li>
@@ -280,14 +280,14 @@ EOF</span>
 
 <h2 id="dns-sub">DNS 서비스: 서브도메인 추가 신청</h2>
 <p>팀 주소 아래(<code>api.team1…</code>)는 자유롭게 쓸 수 있으니 대부분 필요 없습니다. 팀 주소와 다른 이름(예: <code>myapp.gdgoc-devfest.org</code>)이 꼭 필요할 때만 신청합니다.</p>
-<figure class="shot"><a href="/ui/guide/dns-claim.png" target="_blank" rel="noopener"><img src="/ui/guide/dns-claim.png" width="900" height="122" alt="추가 서브도메인 신청" loading="lazy" decoding="async"></a><figcaption>추가 서브도메인 신청</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dns-claim.png" width="900" height="122" alt="추가 서브도메인 신청" loading="lazy" decoding="async"></div><figcaption>추가 서브도메인 신청</figcaption></figure>
 <ol class="legend">
   <li>지금 쓸 수 있는 서브도메인 목록. "기본"이 팀 주소입니다.</li>
   <li>원하는 이름을 영문 소문자, 숫자, 하이픈으로 넣습니다.</li>
   <li>신청: 다른 팀이 이미 쓰고 있거나 예약된 이름이면 거부됩니다.</li>
   <li>추가로 받은 개수 / 최대 5개</li>
 </ol>
-<figure class="shot"><a href="/ui/guide/dns-claimed.png" target="_blank" rel="noopener"><img src="/ui/guide/dns-claimed.png" width="900" height="112" alt="신청이 끝난 뒤" loading="lazy" decoding="async"></a><figcaption>신청이 끝난 뒤</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dns-claimed.png" width="900" height="112" alt="신청이 끝난 뒤" loading="lazy" decoding="async"></div><figcaption>신청이 끝난 뒤</figcaption></figure>
 <ol class="legend">
   <li>새로 받은 서브도메인. 이제 레코드 추가와 터널의 서브도메인 선택칸에 나옵니다.</li>
   <li>반납: 그 아래 레코드와 터널 주소를 모두 지워야 반납할 수 있습니다.</li>
@@ -310,18 +310,18 @@ Aliases:  team1.gdgoc-devfest.org</pre></div>
 <h2 id="dok-login">Dokploy: 로그인과 프로젝트</h2>
 <p>Dokploy 계정은 팀당 하나이고, DNS 서비스 계정처럼 운영진이 미리 만들어서 이메일과 비밀번호를 드립니다. 팀원 모두가 이 계정 하나를 같이 씁니다. 따로 가입할 필요는 없고 <a href="https://platform.gdgoc-devfest.org/">platform.gdgoc-devfest.org</a>에서 바로 로그인하면 됩니다.</p>
 <div class="callout warn"><span class="tag">공용 계정</span><div><p>팀 공용 계정이라 비밀번호를 바꾸면 팀원 모두가 다시 알아야 합니다. 바꿨다면 팀 안에서 꼭 공유하고, 개인적으로 쓰는 다른 비밀번호는 넣지 마세요. 비밀번호를 잊으면 박지민에게 재설정을 요청하세요.</p></div></div>
-<figure class="shot"><a href="/ui/guide/dok-login.png" target="_blank" rel="noopener"><img src="/ui/guide/dok-login.png" width="591" height="430" alt="Dokploy 로그인" loading="lazy" decoding="async"></a><figcaption>Dokploy 로그인</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dok-login.png" width="591" height="430" alt="Dokploy 로그인" loading="lazy" decoding="async"></div><figcaption>Dokploy 로그인</figcaption></figure>
 <ol class="legend">
   <li>Email: 운영진이 준 팀 이메일</li>
   <li>Password: 운영진이 준 비밀번호</li>
   <li>Login</li>
 </ol>
-<figure class="shot"><a href="/ui/guide/dok-projects.png" target="_blank" rel="noopener"><img src="/ui/guide/dok-projects.png" width="800" height="300" alt="Projects 목록" loading="lazy" decoding="async"></a><figcaption>Projects 목록</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dok-projects.png" width="800" height="300" alt="Projects 목록" loading="lazy" decoding="async"></div><figcaption>Projects 목록</figcaption></figure>
 <ol class="legend">
   <li>우리 팀 프로젝트 카드. 운영진이 팀 ID(<code>team1</code>) 이름으로 미리 만들어 둡니다. 누르면 프로젝트 안으로 들어갑니다. 다른 팀 프로젝트는 보이지 않는 것이 정상입니다.</li>
   <li>Create Project: 팀 계정에서는 보통 꺼져 있습니다. 우리 팀 프로젝트가 안 보이면 직접 만들지 말고 박지민에게 알려 주세요.</li>
 </ol>
-<figure class="shot"><a href="/ui/guide/dok-create-project.png" target="_blank" rel="noopener"><img src="/ui/guide/dok-create-project.png" width="538" height="458" alt="Create Project 창" loading="lazy" decoding="async"></a><figcaption>Create Project 창</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dok-create-project.png" width="538" height="458" alt="Create Project 창" loading="lazy" decoding="async"></div><figcaption>Create Project 창</figcaption></figure>
 <ol class="legend">
   <li>Name: 팀 ID 그대로 (<code>team1</code>)</li>
   <li>Create</li>
@@ -425,7 +425,7 @@ HTTP/1.1 200 OK</pre></div>
 </ol>
 
 <h3 id="dok-build">Provider와 Build Type (General 탭)</h3>
-<figure class="shot"><a href="/ui/guide/dok-provider-build.png" target="_blank" rel="noopener"><img src="/ui/guide/dok-provider-build.png" width="800" height="794" alt="Application General 탭: Provider와 Build Type" loading="lazy" decoding="async"></a><figcaption>Application General 탭: Provider와 Build Type</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dok-provider-build.png" width="800" height="794" alt="Application General 탭: Provider와 Build Type" loading="lazy" decoding="async"></div><figcaption>Application General 탭: Provider와 Build Type</figcaption></figure>
 <ol class="legend">
   <li>Provider 탭 중 Git을 고릅니다. (탭은 Github, Gitlab, Bitbucket, Gitea, Docker, Git, Drop 순서입니다.) 팀 계정은 Git provider 연결 권한이 없어서 Github 탭은 쓸 수 없고, 공개 저장소든 비공개 저장소든 Git 탭으로 연결합니다. Repository URL에 <code>https://github.com/&lt;계정&gt;/&lt;저장소&gt;.git</code>, Branch에 <code>main</code>을 넣습니다. 앱이 하위 폴더에 있으면 Build Path에 그 폴더(<code>/frontend</code>)를 넣습니다.</li>
   <li>Build Type: 아래 표에서 고른 방식에 체크합니다.</li>
@@ -442,7 +442,7 @@ HTTP/1.1 200 OK</pre></div>
 <p>처음이라면 Dockerfile을 직접 쓰는 것이 결과를 예측하기 가장 쉽습니다.</p>
 
 <h3 id="dok-env">환경 변수 (Environment 탭)</h3>
-<figure class="shot"><a href="/ui/guide/dok-env.png" target="_blank" rel="noopener"><img src="/ui/guide/dok-env.png" width="800" height="636" alt="Environment 탭" loading="lazy" decoding="async"></a><figcaption>Environment 탭</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dok-env.png" width="800" height="636" alt="Environment 탭" loading="lazy" decoding="async"></div><figcaption>Environment 탭</figcaption></figure>
 <ol class="legend">
   <li>Environment 탭</li>
   <li>입력칸: 한 줄에 <code>KEY=value</code> 하나. 포트를 환경 변수로 받는 앱이면 <code>PORT=3000</code>도 넣습니다. 여러 줄짜리 값(개인 키 등)은 큰따옴표로 감쌉니다.</li>
@@ -461,13 +461,13 @@ CORS_ORIGIN=https://team1.gdgoc-devfest.org</pre></div>
   <li>Deployments 탭에 배포 항목이 하나 생깁니다. 처음 빌드는 몇 분 걸립니다.</li>
   <li>끝나면 Logs 탭에서 컨테이너를 고르고 앱이 에러 없이 떴는지 봅니다.</li>
 </ol>
-<figure class="shot"><a href="/ui/guide/dok-deployments.png" target="_blank" rel="noopener"><img src="/ui/guide/dok-deployments.png" width="800" height="394" alt="Deployments 탭" loading="lazy" decoding="async"></a><figcaption>Deployments 탭</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dok-deployments.png" width="800" height="394" alt="Deployments 탭" loading="lazy" decoding="async"></div><figcaption>Deployments 탭</figcaption></figure>
 <ol class="legend">
   <li>Deployments 탭</li>
   <li>배포 항목 하나. 상태(Running, Done, Error)와 시각이 나옵니다.</li>
   <li>View: 이 배포의 빌드 로그를 엽니다. 실패했으면 맨 아래 줄부터 읽으세요.</li>
 </ol>
-<figure class="shot"><a href="/ui/guide/dok-logs.png" target="_blank" rel="noopener"><img src="/ui/guide/dok-logs.png" width="800" height="958" alt="Logs 탭" loading="lazy" decoding="async"></a><figcaption>Logs 탭</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dok-logs.png" width="800" height="958" alt="Logs 탭" loading="lazy" decoding="async"></div><figcaption>Logs 탭</figcaption></figure>
 <ol class="legend">
   <li>Logs 탭</li>
   <li>컨테이너 선택칸: 먼저 골라야 로그가 나옵니다. <code>running</code>이 보이면 앱이 켜져 있는 것입니다.</li>
@@ -478,14 +478,14 @@ CORS_ORIGIN=https://team1.gdgoc-devfest.org</pre></div>
 
 <h2 id="dok-domain">Dokploy: 도메인과 HTTPS</h2>
 <p>DNS 서비스에서 만든 주소를 Dokploy 앱에 연결하면 인증서까지 자동으로 붙습니다.</p>
-<figure class="shot"><a href="/ui/guide/dok-domains.png" target="_blank" rel="noopener"><img src="/ui/guide/dok-domains.png" width="800" height="389" alt="Domains 탭" loading="lazy" decoding="async"></a><figcaption>Domains 탭</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dok-domains.png" width="800" height="389" alt="Domains 탭" loading="lazy" decoding="async"></div><figcaption>Domains 탭</figcaption></figure>
 <ol class="legend">
   <li>Domains 탭</li>
   <li>Add Domain: 새 주소 추가 창을 엽니다.</li>
   <li>추가된 도메인 카드: Host, 포트, HTTPS 여부가 보입니다.</li>
   <li>Validate DNS: DNS 서비스의 레코드가 이 서버를 제대로 가리키는지 확인합니다. 레코드를 만든 직후라면 몇 분 뒤 다시 눌러 보세요.</li>
 </ol>
-<figure class="shot"><a href="/ui/guide/dok-add-domain.png" target="_blank" rel="noopener"><img src="/ui/guide/dok-add-domain.png" width="641" height="921" alt="Add Domain 창" loading="lazy" decoding="async"></a><figcaption>Add Domain 창</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dok-add-domain.png" width="641" height="921" alt="Add Domain 창" loading="lazy" decoding="async"></div><figcaption>Add Domain 창</figcaption></figure>
 <ol class="legend">
   <li>Service Name: Compose로 올렸을 때만 나옵니다. 주소를 받을 서비스(예: <code>frontend</code>)를 고릅니다. Application에는 이 칸이 없습니다.</li>
   <li>Host: <code>team1.gdgoc-devfest.org</code> (DNS 서비스 레코드와 철자까지 똑같이). 옆의 버튼(무작위 주소 생성)은 쓰지 마세요.</li>
@@ -520,7 +520,7 @@ content-type: text/html; charset=utf-8
 
 <h2 id="dok-compose">Docker Compose로 올리기</h2>
 <p>저장소에 이미 <code>docker-compose.yml</code>이 있으면 Create Service → Compose로 여러 서비스를 한 번에 올릴 수 있습니다. 운영진 예시: <a href="https://docker-compose.sample.gdgoc-devfest.org">docker-compose.sample.gdgoc-devfest.org</a></p>
-<figure class="shot"><a href="/ui/guide/dok-compose.png" target="_blank" rel="noopener"><img src="/ui/guide/dok-compose.png" width="800" height="580" alt="Compose General 탭" loading="lazy" decoding="async"></a><figcaption>Compose General 탭</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dok-compose.png" width="800" height="580" alt="Compose General 탭" loading="lazy" decoding="async"></div><figcaption>Compose General 탭</figcaption></figure>
 <ol class="legend">
   <li>Git 탭</li>
   <li>Repository URL: <code>https://github.com/&lt;계정&gt;/&lt;저장소&gt;.git</code></li>
@@ -717,11 +717,11 @@ cloudflared version 2026.x.x <span class="m">(built ...)</span></pre></div>
 
 <h3>2. 터널 만들기 (DNS 서비스)</h3>
 <p>DNS 서비스 화면의 터널 부분에서 터널을 만듭니다. 팀(계정)당 터널은 하나이고, 주소 여러 개를 한 터널에 붙입니다.</p>
-<figure class="shot"><a href="/ui/guide/tunnel-none.png" target="_blank" rel="noopener"><img src="/ui/guide/tunnel-none.png" width="900" height="91" alt="아직 터널이 없을 때" loading="lazy" decoding="async"></a><figcaption>아직 터널이 없을 때</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/tunnel-none.png" width="900" height="91" alt="아직 터널이 없을 때" loading="lazy" decoding="async"></div><figcaption>아직 터널이 없을 때</figcaption></figure>
 <ol class="legend">
   <li>터널 만들기</li>
 </ol>
-<figure class="shot"><a href="/ui/guide/tunnel-install.png" target="_blank" rel="noopener"><img src="/ui/guide/tunnel-install.png" width="900" height="292" alt="터널을 만든 직후 나오는 설치 명령" loading="lazy" decoding="async"></a><figcaption>터널을 만든 직후 나오는 설치 명령</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/tunnel-install.png" width="900" height="292" alt="터널을 만든 직후 나오는 설치 명령" loading="lazy" decoding="async"></div><figcaption>터널을 만든 직후 나오는 설치 명령</figcaption></figure>
 <ol class="legend">
   <li>설치 명령: 맨 뒤의 긴 문자열이 우리 터널의 비밀 토큰입니다. 그대로 복사해서 3번에서 실행합니다. 캡처에서는 일부만 보이게 가렸습니다.</li>
   <li>닫기: 명령을 화면에서 지웁니다.</li>
@@ -749,7 +749,7 @@ cloudflared version 2026.x.x <span class="m">(built ...)</span></pre></div>
 
 <h3>4. 주소와 포트 연결</h3>
 <p>내 컴퓨터에서 앱을 먼저 띄워 둡니다(예: <code>npm start</code>로 3000번). cloudflared는 <code>127.0.0.1</code>(IPv4)로 접속하므로, 앱이 <code>127.0.0.1</code>이나 <code>0.0.0.0</code>에서 들어야 합니다. 일부 Vite·Node 설정은 <code>localhost</code>를 IPv6(<code>::1</code>)로만 열어서 502가 나는데, 이때는 <code>--host 127.0.0.1</code>처럼 주소를 지정하세요. 그다음 DNS 서비스에서 주소를 붙입니다.</p>
-<figure class="shot"><a href="/ui/guide/tunnel-host.png" target="_blank" rel="noopener"><img src="/ui/guide/tunnel-host.png" width="690" height="214" alt="터널에 주소 추가" loading="lazy" decoding="async"></a><figcaption>터널에 주소 추가</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/tunnel-host.png" width="690" height="214" alt="터널에 주소 추가" loading="lazy" decoding="async"></div><figcaption>터널에 주소 추가</figcaption></figure>
 <ol class="legend">
   <li>이름: <code>@</code>면 팀 주소 자체, <code>demo</code>면 <code>demo.team1…</code>. 이미 레코드로 쓰고 있는 이름은 쓸 수 없습니다.</li>
   <li>서브도메인</li>
@@ -757,7 +757,7 @@ cloudflared version 2026.x.x <span class="m">(built ...)</span></pre></div>
   <li>주소 추가</li>
   <li>미리보기: 어떤 주소가 내 컴퓨터의 몇 번 포트로 가는지 보여 줍니다.</li>
 </ol>
-<figure class="shot"><a href="/ui/guide/tunnel-list.png" target="_blank" rel="noopener"><img src="/ui/guide/tunnel-list.png" width="900" height="145" alt="연결된 터널 주소 목록" loading="lazy" decoding="async"></a><figcaption>연결된 터널 주소 목록</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/tunnel-list.png" width="900" height="145" alt="연결된 터널 주소 목록" loading="lazy" decoding="async"></div><figcaption>연결된 터널 주소 목록</figcaption></figure>
 <ol class="legend">
   <li>Hostname: 공개된 주소. 누르면 새 탭에서 열립니다.</li>
   <li>Local port: 연결된 내 컴퓨터의 포트</li>
@@ -884,12 +884,12 @@ cf-cache-status: <span class="g">HIT</span>      <span class="m"># MISS면 처�
 <!-- ───────────────────────── API 키 ───────────────────────── -->
 <h2 id="apikey">API 키와 curl (DNS 서비스)</h2>
 <p>여기서 말하는 API 키는 DNS 서비스 전용입니다. Dokploy 계정이나 배포와는 관계없습니다. DNS 서비스 웹 화면에서 하는 일(레코드, 서브도메인, 터널)은 모두 이 키로 API를 불러서도 할 수 있습니다. 스크립트나 CI, 개인 VM에서 DNS를 자동으로 바꾸고 싶을 때만 필요하고, 웹 화면만 쓴다면 몰라도 됩니다.</p>
-<figure class="shot"><a href="/ui/guide/key-before.png" target="_blank" rel="noopener"><img src="/ui/guide/key-before.png" width="900" height="127" alt="API 키 부분" loading="lazy" decoding="async"></a><figcaption>API 키 부분</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/key-before.png" width="900" height="127" alt="API 키 부분" loading="lazy" decoding="async"></div><figcaption>API 키 부분</figcaption></figure>
 <ol class="legend">
   <li>지금 계정에 있는 키 목록. 키 앞부분과 상태, 마지막 사용 시각만 보입니다.</li>
   <li>새 키 발급: 기존 키는 모두 폐기되고 새 키가 하나 나옵니다.</li>
 </ol>
-<figure class="shot"><a href="/ui/guide/key-new.png" target="_blank" rel="noopener"><img src="/ui/guide/key-new.png" width="771" height="194" alt="새 키가 나온 직후" loading="lazy" decoding="async"></a><figcaption>새 키가 나온 직후</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/key-new.png" width="771" height="194" alt="새 키가 나온 직후" loading="lazy" decoding="async"></div><figcaption>새 키가 나온 직후</figcaption></figure>
 <ol class="legend">
   <li>새 키. 기본으로 가려져 있습니다.</li>
   <li>보기 / 가리기</li>
@@ -948,7 +948,7 @@ cf-cache-status: <span class="g">HIT</span>      <span class="m"># MISS면 처�
 </details>
 
 <h2 id="password">비밀번호 변경</h2>
-<figure class="shot"><a href="/ui/guide/dns-password.png" target="_blank" rel="noopener"><img src="/ui/guide/dns-password.png" width="812" height="143" alt="비밀번호 변경" loading="lazy" decoding="async"></a><figcaption>비밀번호 변경</figcaption></figure>
+<figure class="shot"><div class="frame"><img src="/ui/guide/dns-password.png" width="812" height="143" alt="비밀번호 변경" loading="lazy" decoding="async"></div><figcaption>비밀번호 변경</figcaption></figure>
 <ol class="legend">
   <li>현재 비밀번호</li>
   <li>새 비밀번호: 10자 이상, ID나 이메일이 들어가면 안 되고 한 글자 반복도 안 됩니다.</li>
