@@ -78,7 +78,8 @@ td.nw { white-space: nowrap; }
 .callout.ok { border-color: var(--green-line); background: var(--green-bg); }
 
 figure.shot { margin: 18px 0 6px; }
-figure.shot a { display: block; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: #fff; }
+figure.shot .frame { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: #fff; }
+figure.shot img { -webkit-user-drag: none; user-select: none; }
 figure.shot img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
 figure.shot figcaption { color: var(--muted); font-size: 13px; margin-top: 6px; }
 ol.legend { counter-reset: n; list-style: none; padding-left: 0; margin: 8px 0 20px; font-size: 15px; }
