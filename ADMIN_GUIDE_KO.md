@@ -799,3 +799,19 @@ curl -s -X DELETE $BASE/admin/teams/alice/password -H "Authorization: Bearer $AD
 5. `docker compose up -d --build`로 띄우면 migration이 자동 적용됩니다.
 6. 실제 zone에서 테스트 계정으로 레코드 하나 만들고 지워서 Cloudflare 연동을 확인한 뒤 계정을 나눠 줍니다.
 7. Postgres 볼륨(`postgres_data`)은 주기적으로 백업합니다.
+
+## Dokploy 팀 계정 만들기 (운영진)
+
+참가자 가이드(`/guide`)는 "Dokploy 계정은 운영진이 DNS 계정처럼 만들어서 준다"는 전제로 쓰여 있습니다. 팀 10개 기준으로 한 번만 하면 됩니다. 메뉴 이름은 Dokploy 버전에 따라 조금 다를 수 있습니다.
+
+1. 프로젝트 만들기: 관리자 계정으로 Projects → Create Project를 눌러 `team1`~`team10`을 만듭니다.
+2. 초대 링크 만들기: Settings → Users → Add Invitation에서 이메일 `teamN@gdgoc-kaist.org`, 역할 Member로 만듭니다. 메일 발송 설정이 없어도 화면에 나오는 초대 링크를 복사하면 됩니다.
+3. 가입: 브라우저 시크릿 창에서 초대 링크를 열고, DNS 비밀번호와 다른 랜덤 비밀번호(12자 이상)로 가입합니다. 이메일과 비밀번호를 DNS 계정과 함께 팀에 전달합니다.
+4. 권한 정리: Settings → Users에서 그 사용자의 권한(Edit Permissions)을 엽니다.
+   - 켤 것: 해당 `teamN` 프로젝트 접근, 서비스 생성·삭제, API/CLI 접근(가이드의 GitHub Actions 배포에 필요)
+   - 끌 것: 프로젝트 생성, 다른 팀 프로젝트, Traefik 파일, Docker, SSH 키, Git provider, 서버 설정
+5. 확인: 시크릿 창에서 그 계정으로 로그인해 자기 팀 프로젝트만 보이는지 봅니다.
+
+비밀번호를 잊은 팀은 관리자 계정에서 그 사용자를 지우고 2~4번을 다시 하면 됩니다. 프로젝트와 그 안의 서비스는 사용자를 지워도 남습니다.
+
+비공개 저장소와 자동 배포는 가이드에서 팀이 직접 하도록 안내합니다(읽기 전용 GitHub 토큰, GitHub Webhook 또는 GitHub Actions + Dokploy API 키). 운영진이 GitHub App을 연결할 필요는 없습니다.

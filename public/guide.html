@@ -25,6 +25,7 @@
     <li><a href="#dns-login">로그인과 화면 구성</a></li>
     <li><a href="#dns-record">레코드 추가</a></li>
     <li class="sub"><a href="#dns-where">어디로 연결할까</a></li>
+    <li class="sub"><a href="#dns-vm">개인 VM에 붙이기</a></li>
     <li class="sub"><a href="#dns-rules">이름과 값 규칙</a></li>
     <li><a href="#dns-edit">수정과 삭제</a></li>
     <li><a href="#dns-sub">서브도메인 추가 신청</a></li>
@@ -41,13 +42,14 @@
     <li><a href="#dok-domain">도메인과 HTTPS</a></li>
     <li><a href="#dok-compose">Docker Compose</a></li>
     <li><a href="#dok-db">데이터베이스</a></li>
+    <li><a href="#cicd">자동 배포 (CI/CD)</a></li>
     <li><a href="#dok-after">배포한 뒤</a></li>
   </ol>
   <div class="group">더 알아두기</div>
   <ol>
     <li><a href="#tunnel">터널 (내 노트북·VM 공개)</a></li>
     <li><a href="#cache">속도와 캐시 (서버가 호주)</a></li>
-    <li><a href="#apikey">API 키와 curl</a></li>
+    <li><a href="#apikey">API 키와 curl (DNS 서비스)</a></li>
     <li><a href="#password">비밀번호 변경</a></li>
     <li><a href="#rules">꼭 지켜야 할 규칙</a></li>
     <li><a href="#trouble">자주 겪는 문제</a></li>
@@ -69,7 +71,7 @@
 <tr><th>받는 것</th><th>어디서 쓰나</th><th>예시</th></tr>
 <tr><td>팀 주소</td><td>우리 서비스의 공개 주소</td><td><code>team1.gdgoc-devfest.org</code>, 그 아래 <code>api.team1.gdgoc-devfest.org</code> 등</td></tr>
 <tr><td>DNS 서비스 계정</td><td><a href="/">dns.gdgoc-devfest.org</a>에서 주소가 어디를 가리킬지 정함</td><td>ID <code>team1</code> + 운영진이 준 비밀번호</td></tr>
-<tr><td>Dokploy 계정</td><td><a href="https://platform.gdgoc-devfest.org/">platform.gdgoc-devfest.org</a>에서 앱을 빌드·실행</td><td>대표자 이메일로 온 초대 메일로 가입</td></tr>
+<tr><td>Dokploy 계정</td><td><a href="https://platform.gdgoc-devfest.org/">platform.gdgoc-devfest.org</a>에서 앱을 빌드·실행</td><td>운영진이 팀마다 만들어 준 이메일과 비밀번호 (팀 공용)</td></tr>
 </table></div>
 
 <p>요청이 우리 앱까지 가는 길은 아래와 같습니다. DNS 서비스는 1번(주소 → 서버 연결)만 담당하고, 실제 앱 실행과 HTTPS 인증서는 Dokploy가 맡습니다.</p>
@@ -118,7 +120,8 @@
 </ol>
 </div>
 
-<p>그래서 주소 하나를 공개하려면 두 곳에 같은 주소를 적어야 합니다. DNS 서비스의 레코드(1번)와 Dokploy의 Domains(3번)입니다. 둘 중 하나라도 빠지면 접속되지 않습니다.</p>
+<p>DNS 서비스는 Dokploy 전용이 아닙니다. 우리 팀 주소는 공용 서버(Dokploy)뿐 아니라 팀원이 따로 쓰는 개인 VM, 클라우드 서버, Vercel 같은 외부 호스팅, 터널을 연 노트북 어디에도 붙일 수 있습니다(<a href="#dns-where">어디로 연결할까</a>). 아래는 가장 많이 쓰는 Dokploy 기준 설명입니다.</p>
+<p>Dokploy에 올릴 때는 주소 하나를 공개하려면 두 곳에 같은 주소를 적어야 합니다. DNS 서비스의 레코드(1번)와 Dokploy의 Domains(3번)입니다. 둘 중 하나라도 빠지면 접속되지 않습니다.</p>
 
 <!-- ───────────────────────── 서버 ───────────────────────── -->
 <h2 id="server">서버 사양과 공용 자원</h2>
@@ -135,7 +138,7 @@
 </table></div>
 
 <div class="callout warn"><span class="tag">공용 자원</span><div>
-<p>16GB를 모든 팀이 나눠 쓰기 때문에 한 팀이 메모리를 많이 쓰면 다른 팀 앱이 느려지거나 꺼질 수 있습니다. 팀당 1GB 안팎을 목표로 잡아 주세요.</p>
+<p>16GB를 10개 팀이 나눠 쓰고, Dokploy와 Traefik 자체도 일부를 씁니다. 한 팀이 메모리를 많이 쓰면 다른 팀 앱이 느려지거나 꺼질 수 있으니, 팀당 1.5GB 안팎(빌드 중에는 잠깐 더)을 목표로 잡아 주세요.</p>
 <ul>
   <li>개발 서버(<code>npm run dev</code>, <code>next dev</code>, <code>vite</code>, <code>flask run --debug</code>)로 띄우지 말고, 빌드한 결과를 실행하세요. 개발 서버는 메모리를 몇 배 더 씁니다.</li>
   <li>빌드는 메모리를 가장 많이 쓰는 순간입니다. 여러 앱을 동시에 Deploy하지 말고 하나씩 배포하세요.</li>
@@ -155,7 +158,7 @@
   <li><a href="#dok-domain">Domains</a>에 같은 주소를 넣고 HTTPS를 켠 뒤 한 번 더 Deploy합니다.</li>
   <li>브라우저에서 <code>https://team1.gdgoc-devfest.org</code>를 열어 확인합니다.</li>
 </ol>
-<p>Vercel, Netlify 같은 외부 호스팅을 쓴다면 2번에서 값만 바꾸고 3~6번은 건너뜁니다(<a href="#dns-where">어디로 연결할까</a>). 내 노트북이나 공인 IP가 없는 VM에서 띄운 서버를 공개하려면 <a href="#tunnel">터널</a>을 씁니다.</p>
+<p>Vercel, Netlify 같은 외부 호스팅이나 공인 IP가 있는 개인 VM을 쓴다면 2번에서 값만 바꾸고 3~6번은 건너뜁니다(<a href="#dns-where">어디로 연결할까</a>, <a href="#dns-vm">개인 VM에 붙이기</a>). 내 노트북이나 공인 IP가 없는 VM에서 띄운 서버를 공개하려면 <a href="#tunnel">터널</a>을 씁니다.</p>
 
 <!-- ───────────────────────── DNS ───────────────────────── -->
 <h2 id="dns-login">DNS 서비스: 로그인과 화면 구성</h2>
@@ -210,17 +213,37 @@
 <p>CNAME 대신 A 레코드에 IP <code>103.82.65.75</code>를 넣어도 동작합니다. 다만 서버를 옮기면 직접 고쳐야 하므로 CNAME을 권장합니다. 반영까지는 보통 1~5분 걸립니다. 레코드를 만들기 전에 그 주소로 접속해 봤다면 "없는 주소"라는 답이 캐시되어 최대 30분까지 걸릴 수 있습니다.</p>
 
 <h3 id="dns-where">어디로 연결할까</h3>
+<p>운영진은 공용 서버(Dokploy) 사용을 권장합니다. 문제가 생겼을 때 운영진이 같이 볼 수 있고, 외부 서비스 인증 절차가 필요 없습니다. 외부 호스팅도 연결은 되지만, 인증용 TXT가 필요한 경우에는 운영진 손을 거쳐야 해서 시간이 걸립니다.</p>
 <div class="tablewrap"><table>
 <tr><th>호스팅</th><th>타입</th><th>값(Target)</th><th>호스팅 쪽에서 할 일</th></tr>
-<tr><td>Dokploy (공용 서버)</td><td>CNAME</td><td><code>vps.gdgoc-devfest.org</code></td><td><a href="#dok-domain">Domains</a>에 같은 주소 추가</td></tr>
+<tr><td>Dokploy (공용 서버, 권장)</td><td>CNAME</td><td><code>vps.gdgoc-devfest.org</code></td><td><a href="#dok-domain">Domains</a>에 같은 주소 추가</td></tr>
 <tr><td>Vercel</td><td>CNAME</td><td>Vercel Domains 화면에 나온 값 (보통 <code>cname.vercel-dns.com</code>)</td><td>Settings → Domains에 <code>team1.gdgoc-devfest.org</code> 추가</td></tr>
 <tr><td>Netlify</td><td>CNAME</td><td><code>&lt;사이트&gt;.netlify.app</code></td><td>Domain management에 주소 추가</td></tr>
 <tr><td>GitHub Pages</td><td>CNAME</td><td><code>&lt;계정&gt;.github.io</code></td><td>저장소 Settings → Pages → Custom domain에 주소 입력</td></tr>
 <tr><td>Firebase Hosting</td><td>A + TXT</td><td>콘솔이 알려 주는 IP와 인증용 TXT</td><td>Hosting → 커스텀 도메인 추가</td></tr>
-<tr><td>직접 운영하는 서버 (공인 IP 있음)</td><td>A</td><td>그 서버의 공인 IPv4</td><td>서버에서 HTTPS 설정 (Caddy, certbot 등)</td></tr>
+<tr><td>개인 VM·클라우드 서버 (공인 IP 있음: AWS EC2, GCP, DigitalOcean, Oracle 등)</td><td>A (IPv6면 AAAA)</td><td>그 서버의 공인 IP</td><td>방화벽에서 80, 443 열기. 서버에서 HTTPS 설정 (<a href="#dns-vm">아래 예시</a>)</td></tr>
 <tr><td>공인 IP가 없는 노트북·VM</td><td colspan="2">레코드 대신 <a href="#tunnel">터널</a> 사용</td><td>화면에 나온 설치 명령을 그 컴퓨터에서 실행</td></tr>
 </table></div>
-<div class="callout warn"><span class="tag">외부 인증</span><div><p>Vercel의 <code>_vercel</code>, GitHub Pages의 <code>_github-pages-challenge-…</code>처럼 밑줄로 시작하는 TXT 인증을 요구하면 DNS 서비스에서는 만들 수 없습니다. 그 화면을 캡처해서 <a href="#contact">운영진</a>에게 보내 주세요. 운영진이 대신 넣습니다.</p></div></div>
+<div class="callout warn"><span class="tag">외부 인증</span><div><p>Vercel의 <code>_vercel</code>, GitHub Pages의 <code>_github-pages-challenge-…</code>처럼 밑줄로 시작하는 TXT 인증을 요구하면 DNS 서비스에서는 만들 수 없습니다. 그 화면을 캡처해서 박지민(<a href="#contact">문의</a>)에게 보내 주세요. 대신 넣어 드립니다. 바로 처리되지 않을 수 있으니, 급하다면 Dokploy로 올리는 편이 빠릅니다.</p></div></div>
+
+<h3 id="dns-vm">개인 VM에 붙이기</h3>
+<p>팀원이 따로 가진 VM(AWS, GCP, DigitalOcean, 학교 서버 등)에 서비스를 띄웠다면, 공인 IP가 있을 때는 A 레코드 한 줄로 우리 주소를 붙일 수 있습니다. 공인 IP가 없으면 <a href="#tunnel">터널</a>을 씁니다.</p>
+<ol class="steps">
+  <li>VM의 공인 IP를 확인합니다. 클라우드 콘솔에 나오거나, VM에서 <code>curl -4 ifconfig.me</code>로 볼 수 있습니다.</li>
+  <li>DNS 서비스에서 이름 <code>@</code>(또는 <code>api</code> 등), 타입 <code>A</code>, 값에 그 IP를 넣어 추가합니다. proxy는 끈 채로 둡니다.</li>
+  <li>VM 방화벽(보안 그룹)에서 80, 443 포트를 엽니다.</li>
+  <li>VM에서 HTTPS를 붙입니다. Caddy를 쓰면 인증서를 알아서 받습니다.</li>
+</ol>
+<div class="term"><div class="bar"><i></i><i></i><i></i><span>VM (Ubuntu) — Caddy로 HTTPS + 앱 연결</span></div><pre><span class="p">$ </span><span class="c">sudo apt install -y caddy</span>
+<span class="p">$ </span><span class="c">sudo tee /etc/caddy/Caddyfile &lt;&lt;'EOF'
+team1.gdgoc-devfest.org {
+    reverse_proxy 127.0.0.1:3000
+}
+EOF</span>
+<span class="p">$ </span><span class="c">sudo systemctl reload caddy</span>
+<span class="p">$ </span><span class="c">curl -I https://team1.gdgoc-devfest.org</span>
+<span class="g">HTTP/2 200</span></pre></div>
+<p>같은 주소를 Dokploy와 개인 VM에 동시에 쓸 수는 없습니다. 레코드 하나는 한 곳만 가리키므로, 프론트는 Dokploy(<code>@</code>), 모델 서버는 개인 VM(<code>ml</code>)처럼 이름을 나눠 쓰세요. VM IP가 바뀌면(재시작 시 바뀌는 클라우드가 있습니다) 레코드 값도 고쳐야 합니다. 고정 IP(Elastic IP, Reserved IP 등)를 쓰거나 <a href="#apikey">API</a>로 자동으로 바꾸게 하면 편합니다.</p>
 
 <h3 id="dns-rules">이름과 값 규칙</h3>
 <div class="tablewrap"><table>
@@ -282,17 +305,18 @@ Aliases:  team1.gdgoc-devfest.org</pre></div>
 
 <!-- ───────────────────────── Dokploy ───────────────────────── -->
 <h2 id="dok-login">Dokploy: 로그인과 프로젝트</h2>
-<p>Dokploy 계정은 팀당 하나이고, 대표자 이메일로 초대 메일이 갑니다. 메일의 링크로 비밀번호를 정해 가입한 뒤, 이후에는 <a href="https://platform.gdgoc-devfest.org/">platform.gdgoc-devfest.org</a>에서 로그인합니다. 메일이 안 보이면 스팸함을 확인하고, 그래도 없으면 운영진에게 알려 주세요.</p>
+<p>Dokploy 계정은 팀당 하나이고, DNS 서비스 계정처럼 운영진이 미리 만들어서 이메일과 비밀번호를 드립니다. 팀원 모두가 이 계정 하나를 같이 씁니다. 따로 가입할 필요는 없고 <a href="https://platform.gdgoc-devfest.org/">platform.gdgoc-devfest.org</a>에서 바로 로그인하면 됩니다.</p>
+<div class="callout warn"><span class="tag">공용 계정</span><div><p>팀 공용 계정이라 비밀번호를 바꾸면 팀원 모두가 다시 알아야 합니다. 바꿨다면 팀 안에서 꼭 공유하고, 개인적으로 쓰는 다른 비밀번호는 넣지 마세요. 비밀번호를 잊으면 박지민에게 재설정을 요청하세요.</p></div></div>
 <figure class="shot"><a href="/ui/guide/dok-login.png" target="_blank" rel="noopener"><img src="/ui/guide/dok-login.png" width="591" height="430" alt="Dokploy 로그인" loading="lazy" decoding="async"></a><figcaption>Dokploy 로그인</figcaption></figure>
 <ol class="legend">
-  <li>Email: 초대받은 대표자 이메일</li>
-  <li>Password: 가입할 때 정한 비밀번호</li>
+  <li>Email: 운영진이 준 팀 이메일</li>
+  <li>Password: 운영진이 준 비밀번호</li>
   <li>Login</li>
 </ol>
 <figure class="shot"><a href="/ui/guide/dok-projects.png" target="_blank" rel="noopener"><img src="/ui/guide/dok-projects.png" width="800" height="300" alt="Projects 목록" loading="lazy" decoding="async"></a><figcaption>Projects 목록</figcaption></figure>
 <ol class="legend">
-  <li>우리 팀 프로젝트 카드. 누르면 프로젝트 안으로 들어갑니다. 다른 팀 프로젝트는 보이지 않거나 열리지 않는 것이 정상입니다.</li>
-  <li>Create Project: 우리 팀 프로젝트가 없을 때만 씁니다. 버튼도 없으면 운영진에게 알려 주세요.</li>
+  <li>우리 팀 프로젝트 카드. 운영진이 팀 ID(<code>team1</code>) 이름으로 미리 만들어 둡니다. 누르면 프로젝트 안으로 들어갑니다. 다른 팀 프로젝트는 보이지 않는 것이 정상입니다.</li>
+  <li>Create Project: 팀 계정에서는 보통 꺼져 있습니다. 우리 팀 프로젝트가 안 보이면 직접 만들지 말고 박지민에게 알려 주세요.</li>
 </ol>
 <figure class="shot"><a href="/ui/guide/dok-create-project.png" target="_blank" rel="noopener"><img src="/ui/guide/dok-create-project.png" width="538" height="458" alt="Create Project 창" loading="lazy" decoding="async"></a><figcaption>Create Project 창</figcaption></figure>
 <ol class="legend">
@@ -352,7 +376,18 @@ HTTP/1.1 200 OK</pre></div>
 <span class="p">$ </span><span class="c">git push origin main</span>
 <span class="m">To https://github.com/&lt;계정&gt;/&lt;저장소&gt;.git</span>
 <span class="m">   1a2b3c4..5d6e7f8  main -&gt; main</span></pre></div>
-<p>저장소는 공개(public)로 두는 것이 가장 간단합니다. 비공개(private) 저장소를 꼭 써야 하면 운영진에게 먼저 알려 주세요.</p>
+<p>저장소는 공개(public)로 두는 것이 가장 간단합니다. 비공개(private) 저장소라면 아래 <a href="#dok-private">비공개 저장소 연결</a>을 따라 하면 운영진 없이 팀이 직접 연결할 수 있습니다.</p>
+
+<h4 id="dok-private">비공개 저장소 연결 (GitHub 토큰)</h4>
+<p>읽기 전용 토큰을 만들어 Repository URL에 넣는 방식입니다.</p>
+<ol class="steps">
+  <li>GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token</li>
+  <li>Repository access는 Only select repositories로 배포할 저장소 하나만 고릅니다. 조직 저장소라면 Resource owner를 그 조직으로 고릅니다(조직 설정에 따라 관리자 승인이 필요할 수 있습니다).</li>
+  <li>Permissions → Repository permissions → Contents를 Read-only로 둡니다. 나머지는 건드리지 않습니다. 만료일은 행사 끝난 직후로 정합니다.</li>
+  <li>Dokploy Provider의 Git 탭 Repository URL에 토큰을 넣은 주소를 씁니다.</li>
+</ol>
+<div class="term"><div class="bar"><i></i><i></i><i></i><span>Repository URL 형식</span></div><pre>https://x-access-token:github_pat_xxxxxxxx@github.com/&lt;계정&gt;/&lt;저장소&gt;.git</pre></div>
+<div class="callout warn"><span class="tag">토큰 주의</span><div><p>이 주소는 Dokploy 화면에 그대로 보이므로 캡처할 때 가려 주세요. 행사가 끝나면 GitHub에서 토큰을 지우세요.</p></div></div>
 
 <h2 id="dok-app">Dokploy: Application 만들기</h2>
 <p>앱 하나 = Dokploy의 Application 하나입니다. 프론트와 백엔드를 따로 띄우면 아래를 두 번 합니다. 저장소에 <code>docker-compose.yml</code>이 이미 있으면 <a href="#dok-compose">Compose</a>로 한 번에 올릴 수도 있습니다.</p>
@@ -465,7 +500,7 @@ content-type: text/html; charset=utf-8
   <li>Compose Path: 저장소 안 파일 위치 (보통 <code>./docker-compose.yml</code>)</li>
   <li>Save</li>
   <li>Deploy: 저장한 내용으로 배포합니다. Compose는 도메인을 바꿀 때마다 다시 Deploy해야 반영됩니다.</li>
-  <li>Autodeploy: push할 때마다 자동 배포 (<a href="#dok-after">배포한 뒤</a> 참고)</li>
+  <li>Autodeploy: push할 때마다 자동 배포 (<a href="#cicd">자동 배포 (CI/CD)</a> 참고)</li>
 </ol>
 <p>그다음 Domains 탭에서 Add Domain을 누르고, Service Name에서 주소를 받을 서비스를 고른 뒤 Host, Container Port, HTTPS를 위와 같이 채웁니다.</p>
 <div class="term"><div class="bar"><i></i><i></i><i></i><span>docker-compose.yml 예시</span></div><pre>services:
@@ -504,11 +539,54 @@ volumes:
 <h2 id="dok-db">데이터베이스가 필요할 때</h2>
 <p>프로젝트 안에서 Create Service → Database로 PostgreSQL, MySQL, MongoDB, Redis 등을 만들 수 있습니다. 만든 DB 화면에 나오는 내부 접속 주소(Internal connection URL)를 백엔드 환경 변수(예: <code>DATABASE_URL</code>)에 넣습니다. DB에는 도메인을 붙이지 않고, External Port도 열지 않습니다.</p>
 
+<h2 id="cicd">자동 배포 (CI/CD)</h2>
+<p>GitHub에 push할 때마다 Dokploy가 알아서 다시 배포하게 만들 수 있습니다. 두 가지 중 하나를 고르세요. 처음이라면 A가 가장 간단합니다.</p>
+
+<h3>A. GitHub Webhook (push하면 바로 배포)</h3>
+<ol class="steps">
+  <li>Dokploy 앱(또는 Compose)의 General 탭 Deploy Settings 카드에서 Autodeploy를 켭니다.</li>
+  <li>Deployments 탭의 Webhook URL 옆 복사 버튼을 누릅니다.</li>
+  <li>GitHub 저장소 → Settings → Webhooks → Add webhook에 붙여 넣습니다. Content type은 <code>application/json</code>, 이벤트는 Just the push event로 둡니다.</li>
+  <li>저장한 뒤 아무 커밋이나 push하고 Dokploy Deployments 탭에 새 항목이 생기는지 봅니다. GitHub Webhooks 화면의 Recent Deliveries에 초록 체크가 보이면 연결된 것입니다.</li>
+</ol>
+<p>Dokploy에 설정한 Branch로 push했을 때만 배포됩니다. 다른 브랜치 push는 무시되는 것이 정상입니다.</p>
+
+<h3>B. GitHub Actions (테스트 통과 후 배포)</h3>
+<p>테스트나 빌드 검사를 통과했을 때만 배포하고 싶다면 GitHub Actions에서 Dokploy API를 부릅니다.</p>
+<ol class="steps">
+  <li>Dokploy 오른쪽 위 프로필 → API/CLI(Profile 설정)에서 API 키를 만듭니다.</li>
+  <li>앱 ID를 확인합니다. 앱 화면 주소창의 맨 끝 값이 앱 ID입니다 (<code>…/application/&lt;앱 ID&gt;</code>, Compose는 <code>…/compose/&lt;ID&gt;</code>).</li>
+  <li>GitHub 저장소 → Settings → Secrets and variables → Actions에 <code>DOKPLOY_API_KEY</code>와 <code>DOKPLOY_APP_ID</code>를 넣습니다.</li>
+  <li>저장소에 아래 파일을 추가하고 push합니다. 이 방식을 쓸 때는 A의 Autodeploy와 Webhook은 꺼 두세요. 둘 다 켜면 두 번 배포됩니다.</li>
+</ol>
+<div class="term"><div class="bar"><i></i><i></i><i></i><span>.github/workflows/deploy.yml</span></div><pre>name: deploy
+on:
+  push:
+    branches: [main]
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm test --if-present
+      - run: npm run build
+      - name: Deploy on Dokploy
+        run: |
+          curl -fsS -X POST https://platform.gdgoc-devfest.org/api/application.deploy \
+            -H "x-api-key: ${{ secrets.DOKPLOY_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"applicationId":"${{ secrets.DOKPLOY_APP_ID }}"}'</pre></div>
+<p>Compose라면 주소를 <code>/api/compose.deploy</code>로, 본문을 <code>{"composeId":"…"}</code>로 바꿉니다. API 키는 우리 팀 계정 권한 그대로 동작하므로 저장소 Secrets 말고 다른 곳에 적지 마세요.</p>
+
 <h2 id="dok-after">배포한 뒤: 수정, 재배포, 로그</h2>
 <div class="tablewrap"><table>
 <tr><th>하고 싶은 것</th><th>Dokploy에서 하는 법</th></tr>
 <tr><td>새 코드 반영</td><td>GitHub에 push → Application → Deploy</td></tr>
-<tr><td>push할 때마다 자동 배포</td><td>General 탭 Deploy Settings 카드의 Autodeploy 토글을 켭니다. Provider가 Git이면 Deployments 탭의 Webhook URL을 GitHub 저장소 Settings → Webhooks에도 등록합니다.</td></tr>
+<tr><td>push할 때마다 자동 배포</td><td><a href="#cicd">자동 배포 (CI/CD)</a> 참고</td></tr>
 <tr><td>환경 변수 수정</td><td>Environment 탭에서 고치고 Save → Deploy</td></tr>
 <tr><td>빌드가 왜 실패했는지 보기</td><td>Deployments 탭 → 실패한 항목의 View</td></tr>
 <tr><td>실행 중 에러 보기</td><td>Logs 탭 (컨테이너 먼저 선택)</td></tr>
@@ -738,11 +816,8 @@ cache-control: public, max-age=31536000, immutable</pre></div>
   <li>공용 서버 디스크와 대역폭은 모든 팀이 같이 씁니다. 업로드 파일을 컨테이너 안에 쌓지 마세요.</li>
 </ul>
 
-<h3>4. 프론트엔드는 Vercel, API만 Dokploy</h3>
-<p>정적 페이지나 Next.js 프론트엔드는 Vercel에 올리면 한국 가까운 엣지에서 나갑니다. API와 DB만 Dokploy에 두고, DNS 서비스에서 <code>@</code>는 Vercel로, <code>api</code>는 <code>vps.gdgoc-devfest.org</code>로 연결하면 됩니다(<a href="#dns-where">어디로 연결할까</a>).</p>
-
-<h3 id="cache-proxy">5. Cloudflare 프록시(캐시) 켜기</h3>
-<p>레코드의 proxy를 켜면 요청이 Cloudflare를 거쳐 가고, 이미지·JS·CSS 같은 정적 파일은 Cloudflare가 가까운 곳에 캐시해 줍니다. 우리 도메인은 Total TLS가 켜져 있어서 <code>api.team1.gdgoc-devfest.org</code> 같은 깊은 주소도 Cloudflare 인증서가 정상으로 붙습니다.</p>
+<h3 id="cache-proxy">4. Cloudflare 프록시(캐시) 켜기</h3>
+<p>레코드의 proxy를 켜면 요청이 Cloudflare를 거쳐 가고, 이미지·JS·CSS 같은 정적 파일은 Cloudflare가 가까운 곳에 캐시해 줍니다. 우리 도메인은 Total TLS가 켜져 있어서 <code>api.team1.gdgoc-devfest.org</code> 같은 깊은 주소도 Cloudflare 인증서가 정상으로 붙고, SSL/TLS 모드가 Full이라 Cloudflare와 공용 서버 사이도 HTTPS로 이어집니다. 서버를 호주에서 옮길 수는 없으니, 데모 화면이 무겁다면 이 방법이 가장 효과가 큽니다.</p>
 <div class="callout warn"><span class="tag">켜는 순서</span><div>
 <ol>
   <li>먼저 proxy를 끈 채로 <a href="#dok-domain">Dokploy 도메인과 HTTPS</a>를 끝내고, <code>https://</code>로 잘 열리는지 확인합니다. Let's Encrypt 첫 인증서는 proxy가 꺼져 있어야 확실하게 발급됩니다.</li>
@@ -755,14 +830,14 @@ server: cloudflare
 cf-cache-status: <span class="g">HIT</span>      <span class="m"># MISS면 처음 받은 것, 다시 요청하면 HIT</span></pre></div>
 <ul>
   <li>Cloudflare는 기본적으로 이미지, JS, CSS처럼 정적 파일 확장자만 캐시하고 HTML과 API 응답은 캐시하지 않습니다. 다만 사람마다 다른 내용을 <code>.png</code>, <code>.js</code> 같은 확장자 주소로 내보낸다면(로그인한 사용자의 프로필 사진 등) 그 응답에는 <code>Cache-Control: private</code>를 붙여 다른 사람에게 캐시된 내용이 가지 않게 하세요.</li>
-  <li>켠 뒤에 '리디렉션이 너무 많습니다' 오류나 525/526 오류가 나면 바로 proxy를 다시 끄고 <a href="#contact">운영진</a>에게 알려 주세요.</li>
+  <li>켠 뒤에 '리디렉션이 너무 많습니다' 오류나 525/526 오류가 나면 바로 proxy를 다시 끄고 박지민에게 알려 주세요. 보통은 Dokploy에서 HTTPS가 아직 안 붙은 상태로 켰을 때 생깁니다.</li>
   <li>proxy를 켜면 Dokploy의 Validate DNS는 Cloudflare IP를 보게 되어 실패로 표시될 수 있습니다. 사이트가 잘 열리면 무시해도 됩니다.</li>
   <li>터널 주소는 처음부터 Cloudflare를 거치므로 따로 켤 필요가 없습니다.</li>
 </ul>
 
 <!-- ───────────────────────── API 키 ───────────────────────── -->
-<h2 id="apikey">API 키와 curl</h2>
-<p>웹 화면에서 하는 모든 일은 API로도 할 수 있습니다. 배포 스크립트나 CI에서 DNS를 바꾸고 싶을 때만 필요하고, 웹 화면만 쓴다면 몰라도 됩니다.</p>
+<h2 id="apikey">API 키와 curl (DNS 서비스)</h2>
+<p>여기서 말하는 API 키는 DNS 서비스 전용입니다. Dokploy 계정이나 배포와는 관계없습니다. DNS 서비스 웹 화면에서 하는 일(레코드, 서브도메인, 터널)은 모두 이 키로 API를 불러서도 할 수 있습니다. 스크립트나 CI, 개인 VM에서 DNS를 자동으로 바꾸고 싶을 때만 필요하고, 웹 화면만 쓴다면 몰라도 됩니다.</p>
 <figure class="shot"><a href="/ui/guide/key-before.png" target="_blank" rel="noopener"><img src="/ui/guide/key-before.png" width="900" height="127" alt="API 키 부분" loading="lazy" decoding="async"></a><figcaption>API 키 부분</figcaption></figure>
 <ol class="legend">
   <li>지금 계정에 있는 키 목록. 키 앞부분과 상태, 마지막 사용 시각만 보입니다.</li>
@@ -801,6 +876,12 @@ cf-cache-status: <span class="g">HIT</span>      <span class="m"># MISS면 처�
 <span class="p">$ </span><span class="c">curl -s -H "Authorization: Bearer $KEY" $BASE/v1/tunnels/token</span>
 <span class="p">$ </span><span class="c">curl -s -X POST -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
     -d '{"subdomain":"team1","name":"demo","localPort":3000}' $BASE/v1/tunnels/hostnames</span></pre></div>
+<details><summary>개인 VM의 IP가 바뀔 때 레코드를 자동으로 고치기</summary>
+<p>레코드 id는 <code>GET /v1/records</code> 결과에서 찾습니다. VM이 켜질 때마다 실행되게 하려면 crontab에 <code>@reboot</code>로 넣으면 됩니다.</p>
+<div class="term"><div class="bar"><i></i><i></i><i></i><span>VM에서</span></div><pre><span class="p">$ </span><span class="c">IP=$(curl -4 -s ifconfig.me)</span>
+<span class="p">$ </span><span class="c">curl -s -X PATCH -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+    -d "{\"content\":\"$IP\"}" https://dns.gdgoc-devfest.org/v1/records/&lt;레코드 id&gt;</span></pre></div>
+</details>
 <details><summary>전체 엔드포인트</summary>
 <div class="tablewrap"><table>
 <tr><th>메서드</th><th>경로</th><th>설명</th></tr>
@@ -852,7 +933,7 @@ cf-cache-status: <span class="g">HIT</span>      <span class="m"># MISS면 처�
 <tr><td><code>Bad Gateway</code> (502)</td><td>Container Port가 틀렸거나 앱이 <code>localhost</code>에서만 들음</td><td>포트를 Logs에 나온 값으로 고치고, 앱을 <code>0.0.0.0</code>에서 듣게 수정 (<a href="#dok-prepare">시작 명령 표</a>)</td></tr>
 <tr><td>주소 자체가 안 열림 (DNS 오류)</td><td>레코드가 없거나 아직 반영 전</td><td><a href="#dns-check">dig로 확인</a>, 몇 분 기다린 뒤 다시 시도 (최대 30분)</td></tr>
 <tr><td>'안전하지 않음' 경고가 계속됨</td><td>첫 인증서 발급 때 proxy가 켜져 있었거나 발급 실패</td><td>proxy 끄기 → Deploy 다시. 30분 넘게 계속되면 운영진 문의</td></tr>
-<tr><td>'리디렉션이 너무 많습니다'</td><td>proxy를 켠 뒤 생기는 HTTPS 설정 충돌</td><td>proxy 끄고 운영진 문의</td></tr>
+<tr><td>'리디렉션이 너무 많습니다', 525, 526</td><td>Dokploy HTTPS가 붙기 전에 proxy를 켬</td><td>proxy 끄기 → Dokploy Domains에서 HTTPS 확인 → 다시 켜기. 계속되면 박지민 문의</td></tr>
 <tr><td>빌드 실패</td><td>의존성 설치 실패, 빌드 명령 오류, 메모리 부족</td><td>Deployments → View 맨 아래 에러 확인. 로컬에서 <code>npm run build</code>가 되는지 먼저 확인</td></tr>
 <tr><td>빌드는 됐는데 바로 꺼짐</td><td>시작 명령이 없거나 환경 변수 누락</td><td>Logs 확인, <code>start</code> 스크립트와 Environment 확인</td></tr>
 <tr><td>프론트에서 API 호출이 막힘</td><td>CORS 또는 API 주소를 <code>localhost</code>로 씀</td><td>API 주소를 <code>https://api.team1…</code>로, 백엔드 CORS에 프론트 주소 추가</td></tr>
