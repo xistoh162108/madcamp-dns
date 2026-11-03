@@ -34,6 +34,7 @@
   <div class="group">Dokploy 배포</div>
   <ol>
     <li><a href="#dok-login">로그인과 프로젝트</a></li>
+    <li class="sub"><a href="#dok-perms">우리 팀 권한</a></li>
     <li><a href="#dok-prepare">코드 준비 (터미널)</a></li>
     <li><a href="#dok-app">Application 만들기</a></li>
     <li class="sub"><a href="#dok-build">Provider와 Build Type</a></li>
@@ -141,7 +142,7 @@
 <p>16GB를 10개 팀이 나눠 쓰고, Dokploy와 Traefik 자체도 일부를 씁니다. 한 팀이 메모리를 많이 쓰면 다른 팀 앱이 느려지거나 꺼질 수 있으니, 팀당 1.5GB 안팎(빌드 중에는 잠깐 더)을 목표로 잡아 주세요.</p>
 <ul>
   <li>개발 서버(<code>npm run dev</code>, <code>next dev</code>, <code>vite</code>, <code>flask run --debug</code>)로 띄우지 말고, 빌드한 결과를 실행하세요. 개발 서버는 메모리를 몇 배 더 씁니다.</li>
-  <li>빌드는 메모리를 가장 많이 쓰는 순간입니다. 여러 앱을 동시에 Deploy하지 말고 하나씩 배포하세요.</li>
+  <li>빌드는 메모리를 가장 많이 쓰는 순간입니다. 서버 전체에서 동시에 2개까지만 빌드되고 나머지는 차례를 기다립니다. Deployments에 대기 중으로 보이면 정상이니, 같은 앱을 여러 번 누르지 말고 기다려 주세요.</li>
   <li>안 쓰는 Application과 Compose는 Stop하거나 지워 주세요.</li>
   <li>각 앱의 CPU·메모리 사용량은 Dokploy의 Monitoring 탭에서 볼 수 있습니다.</li>
 </ul>
@@ -324,6 +325,31 @@ Aliases:  team1.gdgoc-devfest.org</pre></div>
   <li>Create</li>
 </ol>
 <p>프로젝트 하나 안에 프론트엔드, 백엔드, DB처럼 서비스를 여러 개 둘 수 있습니다. 앱은 모두 이 프로젝트 안에 만듭니다.</p>
+<h3 id="dok-perms">우리 팀 계정으로 할 수 있는 것</h3>
+<p>공용 서버를 10개 팀이 같이 쓰기 때문에, 팀 계정은 자기 팀 프로젝트 안에서만 움직이도록 권한이 정해져 있습니다. 아래에 없는 일이 필요하면 박지민에게 요청해 주세요.</p>
+<div class="tablewrap"><table>
+<tr><th>Dokploy에서</th><th>가능</th><th>설명</th></tr>
+<tr><td>우리 팀 프로젝트(<code>team1</code>) 보기</td><td>가능</td><td>로그인하면 이 프로젝트 하나만 보입니다.</td></tr>
+<tr><td>Application, Compose, Database 만들기·지우기</td><td>가능</td><td>우리 프로젝트의 <code>production</code> 환경 안에서 자유롭게 만들고 지웁니다.</td></tr>
+<tr><td>빌드, 배포, 로그, 환경 변수, Domains, Monitoring</td><td>가능</td><td>우리 팀 서비스에 대해서는 전부 할 수 있습니다.</td></tr>
+<tr><td>환경 추가 (<code>staging</code> 등)</td><td>가능</td><td>새 환경이 목록에 안 보이거나 그 안에 서비스를 못 만들면 박지민에게 알려 주세요. 접근 권한을 추가해 드립니다.</td></tr>
+<tr><td>API 키 만들기</td><td>가능</td><td><a href="#cicd">자동 배포 (CI/CD)</a>에 씁니다. 키는 우리 팀 계정과 같은 권한만 가집니다.</td></tr>
+<tr><td>비공개 저장소 연결</td><td>가능</td><td>Provider의 Git 탭에 토큰 주소를 넣습니다 (<a href="#dok-private">방법</a>). Github 탭(GitHub App 연결)은 쓸 수 없습니다.</td></tr>
+<tr><td>새 프로젝트 만들기, 프로젝트 지우기</td><td>불가</td><td>팀 프로젝트는 운영진이 만들어 둡니다.</td></tr>
+<tr><td>다른 팀 프로젝트 보기</td><td>불가</td><td>보이지 않는 것이 정상입니다.</td></tr>
+<tr><td>Docker, Traefik File System, SSH Keys, Git(Provider) 메뉴</td><td>불가</td><td>서버 전체나 모든 팀에 영향을 주는 메뉴라 운영진만 씁니다.</td></tr>
+<tr><td>서버 설정, 사용자 관리</td><td>불가</td><td>운영진 전용입니다.</td></tr>
+</table></div>
+<div class="tablewrap"><table>
+<tr><th>DNS 서비스에서</th><th>가능</th><th>설명</th></tr>
+<tr><td>우리 팀 주소 아래 레코드 추가·수정·삭제</td><td>가능</td><td>팀당 레코드 + 터널 주소 합쳐 10개까지 만들 수 있습니다.</td></tr>
+<tr><td>추가 서브도메인 신청·반납</td><td>가능</td><td>최대 5개. 예약된 이름은 안 됩니다.</td></tr>
+<tr><td>터널 만들기, 주소 연결</td><td>가능</td><td>팀당 터널은 하나이고, 주소는 여러 개 붙일 수 있습니다.</td></tr>
+<tr><td>API 키 재발급, 비밀번호 변경</td><td>가능</td><td>둘 다 팀 공용이므로 바꾸면 팀원에게 공유해 주세요.</td></tr>
+<tr><td>다른 팀 주소 건드리기</td><td>불가</td><td>우리 팀 주소와 신청한 서브도메인만 다룰 수 있습니다.</td></tr>
+<tr><td><code>_</code>로 시작하는 인증용 TXT</td><td>불가</td><td>캡처해서 박지민에게 보내면 대신 넣어 드립니다.</td></tr>
+</table></div>
+<p>두 계정 모두 팀원 전체가 같이 쓰는 공용 계정입니다. DNS 서비스와 Dokploy 비밀번호는 처음에 같은 값으로 드리니, 한쪽을 바꿨다면 다른 쪽도 같이 바꾸고 팀 안에서 공유해 주세요.</p>
 
 <h2 id="dok-prepare">코드 준비 (터미널)</h2>
 <p>Dokploy는 GitHub 저장소에서 코드를 가져와 서버에서 빌드합니다. 올리기 전에 로컬에서 세 가지를 확인하면 실패가 크게 줄어듭니다.</p>
@@ -399,7 +425,7 @@ HTTP/1.1 200 OK</pre></div>
 <h3 id="dok-build">Provider와 Build Type (General 탭)</h3>
 <figure class="shot"><a href="/ui/guide/dok-provider-build.png" target="_blank" rel="noopener"><img src="/ui/guide/dok-provider-build.png" width="800" height="794" alt="Application General 탭: Provider와 Build Type" loading="lazy" decoding="async"></a><figcaption>Application General 탭: Provider와 Build Type</figcaption></figure>
 <ol class="legend">
-  <li>Provider 탭 중 Git: 공개 저장소 주소로 가져올 때 고릅니다. (탭은 Github, Gitlab, Bitbucket, Gitea, Docker, Git, Drop 순서입니다.) Repository URL에 <code>https://github.com/&lt;계정&gt;/&lt;저장소&gt;.git</code>, Branch에 <code>main</code>을 넣습니다. 앱이 하위 폴더에 있으면 Build Path에 그 폴더(<code>/frontend</code>)를 넣습니다.</li>
+  <li>Provider 탭 중 Git을 고릅니다. (탭은 Github, Gitlab, Bitbucket, Gitea, Docker, Git, Drop 순서입니다.) 팀 계정은 Git provider 연결 권한이 없어서 Github 탭은 쓸 수 없고, 공개 저장소든 비공개 저장소든 Git 탭으로 연결합니다. Repository URL에 <code>https://github.com/&lt;계정&gt;/&lt;저장소&gt;.git</code>, Branch에 <code>main</code>을 넣습니다. 앱이 하위 폴더에 있으면 Build Path에 그 폴더(<code>/frontend</code>)를 넣습니다.</li>
   <li>Build Type: 아래 표에서 고른 방식에 체크합니다.</li>
   <li>Publish Directory: 정적 빌드(Vite, CRA 등)일 때만 <code>dist</code>나 <code>build</code>를 넣습니다. 나머지는 비워 둡니다.</li>
   <li>Save: Provider 카드와 Build Type 카드에 각각 있으니, 바꾼 카드의 Save를 누릅니다.</li>
