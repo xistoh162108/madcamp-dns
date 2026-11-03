@@ -96,8 +96,9 @@ app.use("*", async (c, next) => {
   c.header("X-Content-Type-Options", "nosniff");
   c.header("X-Frame-Options", "DENY");
   c.header("Referrer-Policy", "no-referrer");
-  // Authenticated API responses must never be cached by proxies or browsers
-  c.header("Cache-Control", "no-store");
+  // Authenticated API responses must never be cached by proxies or browsers.
+  // Only the static guide images opt out, by setting their own header.
+  if (!c.res.headers.get("Cache-Control")) c.header("Cache-Control", "no-store");
 });
 
 // ── Error handler ────────────────────────────────────────────────────────────
