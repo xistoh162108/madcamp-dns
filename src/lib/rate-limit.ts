@@ -73,9 +73,11 @@ async function checkBucket(keyHash: string, bucket: string, config: RateLimitCon
   }
 }
 
-// Web UI sessions load several endpoints per screen refresh, so they get a
-// larger read budget. Writes stay tight. API-key limits are unchanged.
-const WEB_TOTAL: RateLimitConfig = { limit: 120, windowSeconds: 60 };
+// Web UI sessions reload five lists after every change (about six requests
+// per click), so 120 ran out after roughly 20 changes in a minute and the
+// page stopped refreshing. Reads are cheap DB lookups; writes stay tight.
+// API-key limits are unchanged.
+const WEB_TOTAL: RateLimitConfig = { limit: 300, windowSeconds: 60 };
 const WEB_WRITE: RateLimitConfig = { limit: 30, windowSeconds: 60 };
 
 export async function checkStudentRateLimit(keyHash: string, method: string, webSession = false): Promise<void> {

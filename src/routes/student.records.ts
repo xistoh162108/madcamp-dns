@@ -1,10 +1,11 @@
 import { Hono } from "hono";
 import { prisma } from "../db/prisma.js";
+import type { Prisma } from "@prisma/client";
 import { requireStudent, isWebSession, type StudentContext } from "../lib/auth.js";
 import { checkStudentRateLimit } from "../lib/rate-limit.js";
 import { createDnsRecord, patchDnsRecord, deleteDnsRecord } from "../lib/cloudflare.js";
 import { auditSafe, getClientIp, getUserAgent } from "../lib/audit.js";
-import { lockSubdomain } from "../lib/subdomain.js";
+import { lockSubdomain, lockStudent } from "../lib/subdomain.js";
 import {
   validateRelativeName,
   validateRecordType,
@@ -57,13 +58,19 @@ function safeRecord(r: {
   };
 }
 
+type RecordReader = Pick<Prisma.TransactionClient, "dnsRecord">;
+
+// Same rules Cloudflare applies, checked here so the user gets a clean 409
+// instead of a raw Cloudflare error: a name with a CNAME holds nothing else
+// (A, AAAA or TXT), and one name can't hold two records of the same type.
 async function checkConflicts(
   studentId: string,
   fqdn: string,
   newType: string,
-  excludeRecordId?: string
+  excludeRecordId?: string,
+  db: RecordReader = prisma
 ): Promise<void> {
-  const existing = await prisma.dnsRecord.findMany({
+  const existing = await db.dnsRecord.findMany({
     where: {
       studentId,
       fqdn,
@@ -72,11 +79,11 @@ async function checkConflicts(
   });
 
   for (const rec of existing) {
-    if (newType === "CNAME" && (rec.type === "A" || rec.type === "AAAA")) {
-      throw dnsConflict("CNAME cannot coexist with A or AAAA records on the same name.");
+    if (newType === "CNAME") {
+      throw dnsConflict(`CNAME cannot coexist with other records on the same name (${rec.type} already exists).`);
     }
-    if ((newType === "A" || newType === "AAAA") && rec.type === "CNAME") {
-      throw dnsConflict("A or AAAA cannot coexist with a CNAME record on the same name.");
+    if (rec.type === "CNAME") {
+      throw dnsConflict(`${newType} cannot coexist with a CNAME record on the same name.`);
     }
     if (rec.type === newType) {
       throw dnsConflict(`A ${newType} record already exists for this name.`);
@@ -185,6 +192,7 @@ app.post("/", async (c) => {
       // insert below — see student.subdomains.ts for the other side of this
       // race and src/lib/subdomain.ts for why the lock exists.
       await lockSubdomain(tx, targetSubdomain);
+      await lockStudent(tx, auth.student.id);
 
       if (targetSubdomain !== auth.student.subdomain) {
         const stillOwned = await tx.ownedSubdomain.findFirst({
@@ -210,6 +218,7 @@ app.post("/", async (c) => {
       if (freshTunnelConflict) {
         throw invalidRequest(`The name "${fqdn}" is used by a Tunnel hostname and cannot also hold a manual DNS record.`);
       }
+      await checkConflicts(auth.student.id, fqdn, validType, undefined, tx);
 
       return tx.dnsRecord.create({
         data: {
@@ -315,15 +324,28 @@ app.patch("/:id", async (c) => {
 
   let updated;
   try {
-    updated = await prisma.dnsRecord.update({
-      where: { id: record.id },
-      data: {
-        relativeName: newRelativeName,
-        fqdn: newFqdn,
-        content: update.content ?? record.content,
-        ttl: newTtl,
-        proxied: update.proxied ?? record.proxied,
-      },
+    updated = await prisma.$transaction(async (tx) => {
+      // A rename is re-checked under the subdomain lock, the same lock record
+      // and tunnel-hostname creates take, so a racing create on the new name
+      // can't slip in between the check above and this write.
+      if (newFqdn !== record.fqdn) {
+        await lockSubdomain(tx, recordSubdomain);
+        await checkConflicts(auth.student.id, newFqdn, record.type, record.id, tx);
+        const freshTunnel = await tx.tunnelHostname.findUnique({ where: { fqdn: newFqdn } });
+        if (freshTunnel) {
+          throw invalidRequest(`The name "${newFqdn}" is used by a Tunnel hostname and cannot also hold a manual DNS record.`);
+        }
+      }
+      return tx.dnsRecord.update({
+        where: { id: record.id },
+        data: {
+          relativeName: newRelativeName,
+          fqdn: newFqdn,
+          content: update.content ?? record.content,
+          ttl: newTtl,
+          proxied: update.proxied ?? record.proxied,
+        },
+      });
     });
   } catch (dbErr) {
     // Compensate: best-effort revert Cloudflare back to its pre-patch state,
@@ -372,19 +394,14 @@ app.delete("/:id", async (c) => {
   if (!record) throw notFound("DNS record");
   if (record.studentId !== auth.student.id) throw forbiddenRecord();
 
-  // DB is authoritative for "is this record gone" — delete it first, then
-  // best-effort clean up Cloudflare. If Cloudflare cleanup fails, the DB and
-  // the client's view are still accurate; the only residual issue is an
-  // orphaned CF record that no longer has a DB counterpart, which is a
-  // background ops concern (logged below), not a client-facing error.
+  // Cloudflare first, then the DB. If the Cloudflare delete fails, the error
+  // reaches the user and the record stays listed, so a retry finishes the
+  // job. Deleting the DB row first would free the name in our records while
+  // Cloudflare still serves it (an orphan nobody can see or remove, and a
+  // second A record on the same name would round-robin with it). "Not
+  // found" in Cloudflare counts as done, so retries are safe.
+  await deleteDnsRecord(record.cloudflareRecordId);
   await prisma.dnsRecord.delete({ where: { id: record.id } });
-
-  await deleteDnsRecord(record.cloudflareRecordId).catch((cfErr) => {
-    console.error(
-      "[delete-orphan] DB record deleted but Cloudflare cleanup failed — needs manual cleanup:",
-      { recordId: record.id, cloudflareRecordId: record.cloudflareRecordId, cfErr }
-    );
-  });
 
   auditSafe({
     actorType: "STUDENT",

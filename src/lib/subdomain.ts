@@ -65,3 +65,14 @@ export async function assertSubdomainAvailable(tx: Tx, subdomain: string): Promi
     throw invalidRequest(`The subdomain "${subdomain}" is already claimed by a student as an additional subdomain.`);
   }
 }
+
+// Separate namespace for per-account locks. The record limit counts DNS
+// records and tunnel hostnames across ALL of an account's subdomains, so two
+// creates under different subdomains (which take different subdomain locks)
+// could both pass the count. Every create path takes this lock too, always
+// after its subdomain lock, so the order is the same everywhere.
+const STUDENT_LOCK_NAMESPACE = 84_213_002;
+
+export async function lockStudent(tx: Tx, studentId: string): Promise<void> {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(${STUDENT_LOCK_NAMESPACE}::int, hashtext(${studentId})::int)`;
+}

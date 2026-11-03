@@ -147,3 +147,9 @@ details[open] > summary { margin-bottom: 6px; }
   main { padding: 0; }
   .term { break-inside: avoid; }
 }
+.term .bar .copy {
+  margin-left: auto; font: 12px/1 sans-serif; color: var(--term-text); background: transparent;
+  border: 1px solid #4a4c52; border-radius: 4px; padding: 4px 9px; cursor: pointer;
+}
+.term .bar .copy:hover { background: #3a3c42; }
+@media print { .term .bar .copy { display: none; } }

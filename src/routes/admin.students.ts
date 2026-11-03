@@ -359,16 +359,19 @@ app.post("/:id/rotate-key", async (c) => {
   const student = await prisma.student.findUnique({ where: { id: c.req.param("id") } });
   if (!student) throw notFound("Student");
 
+  // One transaction: if creating the new key fails, the old keys stay active
+  // instead of leaving the account with no working key.
   const now = new Date();
-  await prisma.apiKey.updateMany({
-    where: { studentId: student.id, isActive: true },
-    data: { isActive: false, revokedAt: now },
-  });
-
   const { raw, hash, keyPrefix } = generateApiKey();
-  await prisma.apiKey.create({
-    data: { studentId: student.id, keyHash: hash, keyPrefix, label: "rotated" },
-  });
+  await prisma.$transaction([
+    prisma.apiKey.updateMany({
+      where: { studentId: student.id, isActive: true },
+      data: { isActive: false, revokedAt: now },
+    }),
+    prisma.apiKey.create({
+      data: { studentId: student.id, keyHash: hash, keyPrefix, label: "rotated" },
+    }),
+  ]);
 
   auditSafe({
     actorType: "ADMIN",

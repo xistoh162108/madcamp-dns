@@ -5,12 +5,14 @@ import { prisma } from "../db/prisma.js";
 import { requireStudent, isWebSession, type StudentContext } from "../lib/auth.js";
 import { checkStudentRateLimit } from "../lib/rate-limit.js";
 import { auditSafe, getClientIp, getUserAgent } from "../lib/audit.js";
-import { lockSubdomain } from "../lib/subdomain.js";
+import { lockSubdomain, lockStudent } from "../lib/subdomain.js";
 import {
   createTunnel,
   deleteTunnel,
   getConnectorToken,
-  syncTunnelIngress,
+  putIngressFromDb,
+  withTunnelLock,
+  deleteTunnelHostnameEverywhere,
 } from "../lib/cloudflare-tunnel.js";
 import { createDnsRecord, deleteDnsRecord } from "../lib/cloudflare.js";
 import { validateRelativeName, buildFqdn } from "../lib/validate-dns.js";
@@ -214,96 +216,81 @@ app.post("/hostnames", async (c) => {
     proxied: true,
   });
 
-  // Recompute the tunnel's full active-hostname list (existing + candidate)
-  // and PUT it complete — syncTunnelIngress serializes this against any other
-  // concurrent create/delete on the SAME tunnel via an in-memory lock, since
-  // the Configuration API replaces the whole ingress array every call (not
-  // incrementally) and two unsynchronized recomputes would otherwise race.
-  try {
-    await syncTunnelIngress(prisma, tunnel.id, tunnel.cloudflareTunnelId, { fqdn, localPort });
-  } catch (ingressErr) {
-    await deleteDnsRecord(cfRecord.id).catch(() => {});
-    throw ingressErr;
-  }
-
-  // Final locked transaction — DB-only, no network calls inside. Whichever
-  // of this transaction or a concurrent DELETE /v1/subdomains/:id release
-  // commits first wins; the other re-reads fresh state. See
-  // src/routes/student.subdomains.ts for the other side of this race.
+  // The ingress PUT and the DB commit run under one tunnel lock. The
+  // Configuration API replaces the whole ingress array, so if another
+  // add/delete on this tunnel could read the DB between our PUT and our
+  // commit, its PUT would drop our rule. Holding the lock across both closes
+  // that window.
   let hostname;
   try {
-    hostname = await prisma.$transaction(async (tx) => {
-      await lockSubdomain(tx, targetSubdomain);
+    hostname = await withTunnelLock(tunnel.id, async () => {
+      await putIngressFromDb(prisma, tunnel.id, tunnel.cloudflareTunnelId, { extra: { fqdn, localPort } });
+      try {
+        // Final locked transaction — DB-only, no network calls inside. Whichever
+        // of this transaction or a concurrent DELETE /v1/subdomains/:id release
+        // commits first wins; the other re-reads fresh state.
+        return await prisma.$transaction(async (tx) => {
+          await lockSubdomain(tx, targetSubdomain);
+          await lockStudent(tx, auth.student.id);
 
-      if (targetSubdomain !== auth.student.subdomain) {
-        const stillOwned = await tx.ownedSubdomain.findFirst({
-          where: { studentId: auth.student.id, subdomain: targetSubdomain },
-          select: { id: true },
+          if (targetSubdomain !== auth.student.subdomain) {
+            const stillOwned = await tx.ownedSubdomain.findFirst({
+              where: { studentId: auth.student.id, subdomain: targetSubdomain },
+              select: { id: true },
+            });
+            if (!stillOwned) {
+              throw invalidRequest(`The subdomain "${targetSubdomain}" was released before this hostname could be created.`);
+            }
+          }
+
+          const [freshDnsCount, freshTunnelCount] = await Promise.all([
+            tx.dnsRecord.count({ where: { studentId: auth.student.id } }),
+            tx.tunnelHostname.count({ where: { studentId: auth.student.id } }),
+          ]);
+          if (freshDnsCount + freshTunnelCount >= auth.student.recordLimit) {
+            throw recordLimitExceeded(auth.student.recordLimit);
+          }
+
+          const freshDnsConflict = await tx.dnsRecord.findFirst({ where: { fqdn }, select: { id: true } });
+          if (freshDnsConflict) {
+            throw invalidRequest(`The name "${fqdn}" already has a manual DNS record and cannot also be tunneled.`);
+          }
+          const freshTunnelConflict = await tx.tunnelHostname.findUnique({ where: { fqdn } });
+          if (freshTunnelConflict) {
+            throw invalidRequest(`The name "${fqdn}" is already tunneled.`);
+          }
+
+          return tx.tunnelHostname.create({
+            data: {
+              tunnelId: tunnel.id,
+              studentId: auth.student.id,
+              subdomain: targetSubdomain,
+              relativeName,
+              fqdn,
+              cloudflareRecordId: cfRecord.id,
+              localPort,
+            },
+          });
         });
-        if (!stillOwned) {
-          throw invalidRequest(`The subdomain "${targetSubdomain}" was released before this hostname could be created.`);
-        }
+      } catch (dbErr) {
+        // Still inside the lock: put the ingress list back to what the DB says.
+        await putIngressFromDb(prisma, tunnel.id, tunnel.cloudflareTunnelId).catch((revertErr) => {
+          console.error("[tunnel-hostname-compensation] Failed to revert ingress config after DB failure:", {
+            tunnelId: tunnel.id, fqdn, dbErr, revertErr,
+          });
+        });
+        throw dbErr;
       }
-
-      const [freshDnsCount, freshTunnelCount] = await Promise.all([
-        tx.dnsRecord.count({ where: { studentId: auth.student.id } }),
-        tx.tunnelHostname.count({ where: { studentId: auth.student.id } }),
-      ]);
-      if (freshDnsCount + freshTunnelCount >= auth.student.recordLimit) {
-        throw recordLimitExceeded(auth.student.recordLimit);
-      }
-
-      const freshDnsConflict = await tx.dnsRecord.findFirst({ where: { fqdn }, select: { id: true } });
-      if (freshDnsConflict) {
-        throw invalidRequest(`The name "${fqdn}" already has a manual DNS record and cannot also be tunneled.`);
-      }
-
-      // Re-check the TunnelHostname side too (mirrors the DnsRecord recheck
-      // above) — without this, two concurrent requests for the identical
-      // fqdn would both pass the earlier optimistic check, and the loser's
-      // create() below would hit the fqdn @unique constraint as a raw,
-      // unhandled Prisma error instead of a clean 400.
-      const freshTunnelConflict = await tx.tunnelHostname.findUnique({ where: { fqdn } });
-      if (freshTunnelConflict) {
-        throw invalidRequest(`The name "${fqdn}" is already tunneled.`);
-      }
-
-      return tx.tunnelHostname.create({
-        data: {
-          tunnelId: tunnel.id,
-          studentId: auth.student.id,
-          subdomain: targetSubdomain,
-          relativeName,
-          fqdn,
-          cloudflareRecordId: cfRecord.id,
-          localPort,
-        },
+    });
+  } catch (err) {
+    await deleteDnsRecord(cfRecord.id).catch((revertErr) => {
+      console.error("[tunnel-hostname-compensation] Failed to delete orphaned CNAME:", {
+        cloudflareRecordId: cfRecord.id, fqdn, err, revertErr,
       });
     });
-  } catch (dbErr) {
-    // Belt-and-suspenders: the recheck above should make a raw fqdn P2002
-    // unreachable in normal operation, but translate it to a clean 400 if it
-    // ever slips through (e.g. a manual DB insert outside the app).
-    const err =
-      dbErr instanceof Prisma.PrismaClientKnownRequestError && dbErr.code === "P2002"
-        ? invalidRequest(`The name "${fqdn}" is already in use.`)
-        : dbErr;
-
-    // Compensate: revert the ingress config to exclude the candidate, and
-    // remove the CNAME we just created — both best-effort, both logged if
-    // the compensation itself fails.
-    await syncTunnelIngress(prisma, tunnel.id, tunnel.cloudflareTunnelId).catch((revertErr) => {
-      console.error(
-        "[tunnel-hostname-compensation] Failed to revert ingress config after DB failure:",
-        { tunnelId: tunnel.id, fqdn, dbErr, revertErr }
-      );
-    });
-    await deleteDnsRecord(cfRecord.id).catch((revertErr) => {
-      console.error(
-        "[tunnel-hostname-compensation] Failed to delete orphaned CNAME after DB failure:",
-        { cloudflareRecordId: cfRecord.id, fqdn, dbErr, revertErr }
-      );
-    });
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      throw invalidRequest(`The name "${fqdn}" is already in use.`);
+    }
     throw err;
   }
 
@@ -331,33 +318,10 @@ app.delete("/hostnames/:id", async (c) => {
     throw forbidden("You can only access your own Tunnel hostnames.");
   }
 
-  // DB is authoritative — delete first, then best-effort clean up Cloudflare
-  // (mirrors the established DELETE /v1/records/:id semantics: consistent
-  // across both resource types on purpose, so tunnel deletes don't surprise
-  // anyone who already knows how DNS record deletes behave). Two independent
-  // CF-side steps here, so report cleanup outcome in the response body
-  // rather than only logging it — more visibility than a plain record delete
-  // needs, since there's more that can partially fail.
-  await prisma.tunnelHostname.delete({ where: { id: hostname.id } });
-
-  let ingressUpdated = true;
-  try {
-    const tunnel = await prisma.tunnel.findUniqueOrThrow({ where: { id: hostname.tunnelId } });
-    await syncTunnelIngress(prisma, tunnel.id, tunnel.cloudflareTunnelId);
-  } catch (err) {
-    ingressUpdated = false;
-    console.error("[delete-orphan] Tunnel hostname deleted from DB but ingress config update failed:", {
-      hostnameId: hostname.id, tunnelId: hostname.tunnelId, err,
-    });
-  }
-
-  let dnsRecordDeleted = true;
-  await deleteDnsRecord(hostname.cloudflareRecordId).catch((cfErr) => {
-    dnsRecordDeleted = false;
-    console.error("[delete-orphan] Tunnel hostname deleted from DB but Cloudflare CNAME cleanup failed:", {
-      hostnameId: hostname.id, cloudflareRecordId: hostname.cloudflareRecordId, cfErr,
-    });
-  });
+  // Cloudflare first, then the DB (see deleteTunnelHostnameEverywhere). If a
+  // Cloudflare step fails the hostname stays listed and the error is shown,
+  // so the student can simply retry.
+  await deleteTunnelHostnameEverywhere(prisma, hostname, deleteDnsRecord);
 
   auditSafe({
     actorType: "STUDENT",
@@ -370,7 +334,7 @@ app.delete("/hostnames/:id", async (c) => {
     userAgent: getUserAgent(c),
   });
 
-  return c.json({ success: true, cloudflareCleanup: { ingressUpdated, dnsRecordDeleted } });
+  return c.json({ success: true, cloudflareCleanup: { ingressUpdated: true, dnsRecordDeleted: true } });
 });
 
 export default app;

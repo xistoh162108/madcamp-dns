@@ -2,10 +2,10 @@ import { Hono } from "hono";
 import { prisma } from "../db/prisma.js";
 import { requireAdmin } from "../lib/auth.js";
 import { deleteDnsRecord } from "../lib/cloudflare.js";
-import { deleteTunnel, syncTunnelIngress } from "../lib/cloudflare-tunnel.js";
+import { deleteTunnel, withTunnelLock, deleteTunnelHostnameEverywhere } from "../lib/cloudflare-tunnel.js";
 import { auditSafe, getClientIp, getUserAgent } from "../lib/audit.js";
 import { checkAdminRateLimit } from "../lib/rate-limit.js";
-import { notFound } from "../lib/errors.js";
+import { notFound, cloudflareError } from "../lib/errors.js";
 
 const app = new Hono();
 
@@ -77,31 +77,26 @@ app.delete("/:id", async (c) => {
 
   const hostnameSnapshot = tunnel.hostnames.map((h) => ({ id: h.id, cloudflareRecordId: h.cloudflareRecordId, fqdn: h.fqdn }));
 
-  await prisma.$transaction([
-    prisma.tunnelHostname.deleteMany({ where: { tunnelId: tunnel.id } }),
-    prisma.tunnel.delete({ where: { id: tunnel.id } }),
-  ]);
-
-  // Independent Cloudflare calls (different CNAME records) — run concurrently
-  // rather than serializing N round-trips.
-  const cleanupResults = await Promise.all(
-    hostnameSnapshot.map((h) =>
-      deleteDnsRecord(h.cloudflareRecordId)
-        .then(() => true)
-        .catch((cfErr) => {
-          console.error("[delete-orphan] Tunnel hostname CNAME cleanup failed:", { hostnameId: h.id, fqdn: h.fqdn, cfErr });
-          return false;
-        })
-    )
-  );
-  const dnsRecordsDeleted = cleanupResults.filter(Boolean).length;
-  const dnsRecordsFailed = cleanupResults.length - dnsRecordsDeleted;
-
-  let tunnelDeleted = true;
-  await deleteTunnel(tunnel.cloudflareTunnelId).catch((cfErr) => {
-    tunnelDeleted = false;
-    console.error("[delete-orphan] Cloudflare tunnel cleanup failed:", { tunnelId: tunnel.id, cloudflareTunnelId: tunnel.cloudflareTunnelId, cfErr });
+  // Cloudflare first, then the DB. Every CNAME must be gone and the tunnel
+  // deleted before the rows go; otherwise the DB would forget a tunnel that
+  // still exists in Cloudflare, and the student's next "create tunnel" would
+  // collide with the leftover tunnel name. Each step is idempotent, so on a
+  // failure the admin just retries.
+  await withTunnelLock(tunnel.id, async () => {
+    const results = await Promise.allSettled(hostnameSnapshot.map((h) => deleteDnsRecord(h.cloudflareRecordId)));
+    const failed = results.filter((r) => r.status === "rejected").length;
+    if (failed) {
+      throw cloudflareError(`Could not delete ${failed} of ${results.length} tunnel CNAME record(s) in Cloudflare. Nothing was removed from the database; try again.`);
+    }
+    await deleteTunnel(tunnel.cloudflareTunnelId);
+    await prisma.$transaction([
+      prisma.tunnelHostname.deleteMany({ where: { tunnelId: tunnel.id } }),
+      prisma.tunnel.delete({ where: { id: tunnel.id } }),
+    ]);
   });
+  const dnsRecordsDeleted = hostnameSnapshot.length;
+  const dnsRecordsFailed = 0;
+  const tunnelDeleted = true;
 
   auditSafe({
     actorType: "ADMIN",
@@ -125,26 +120,10 @@ app.delete("/hostnames/:id", async (c) => {
   const hostname = await prisma.tunnelHostname.findUnique({ where: { id: c.req.param("id") } });
   if (!hostname) throw notFound("Tunnel hostname");
 
-  await prisma.tunnelHostname.delete({ where: { id: hostname.id } });
-
-  let ingressUpdated = true;
-  try {
-    const tunnel = await prisma.tunnel.findUniqueOrThrow({ where: { id: hostname.tunnelId } });
-    await syncTunnelIngress(prisma, tunnel.id, tunnel.cloudflareTunnelId);
-  } catch (err) {
-    ingressUpdated = false;
-    console.error("[delete-orphan] Tunnel hostname deleted from DB but ingress config update failed:", {
-      hostnameId: hostname.id, tunnelId: hostname.tunnelId, err,
-    });
-  }
-
-  let dnsRecordDeleted = true;
-  await deleteDnsRecord(hostname.cloudflareRecordId).catch((cfErr) => {
-    dnsRecordDeleted = false;
-    console.error("[delete-orphan] Tunnel hostname deleted from DB but Cloudflare CNAME cleanup failed:", {
-      hostnameId: hostname.id, cloudflareRecordId: hostname.cloudflareRecordId, cfErr,
-    });
-  });
+  // Cloudflare first, then the DB; see deleteTunnelHostnameEverywhere.
+  await deleteTunnelHostnameEverywhere(prisma, hostname, deleteDnsRecord);
+  const ingressUpdated = true;
+  const dnsRecordDeleted = true;
 
   auditSafe({
     actorType: "ADMIN",

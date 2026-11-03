@@ -221,12 +221,12 @@
       if (v === null) return;
       var n = Number(v);
       if (!Number.isInteger(n) || n < 1 || n > 100) { msg("list-msg", "1~100 사이 정수를 입력하세요."); return; }
-      try { await api("PATCH", path, { recordLimit: n }); load(); }
+      try { await api("PATCH", path, { recordLimit: n }); msg("list-msg", t.team + " 한도를 " + n + "(으)로 바꿨습니다.", true); load(); }
       catch (e) { msg("list-msg", e.message); }
     }));
     a.append(" ", button(t.isActive ? "정지" : "해제", async function () {
       if (t.isActive && !confirm(t.team + " 계정을 정지할까요? 레코드는 유지되고 수정만 막힙니다.")) return;
-      try { await api("PATCH", path, { isActive: !t.isActive }); load(); }
+      try { await api("PATCH", path, { isActive: !t.isActive }); msg("list-msg", t.team + (t.isActive ? " 계정을 정지했습니다." : " 계정 정지를 풀었습니다."), true); load(); }
       catch (e) { msg("list-msg", e.message); }
     }));
     return tr;
@@ -325,14 +325,17 @@
   });
 
   $("rotate").onclick = async function () {
-    if (!detail) return;
+    var btn = this;
+    if (!detail || btn.disabled) return;
     var t = detail;
     if (!confirm(t.team + " 의 모든 키(웹 세션 포함)를 폐기하고 새 키 하나를 발급할까요?")) return;
+    btn.disabled = true;
     try {
       var d = await api("POST", "/admin/students/" + encodeURIComponent(t.id) + "/rotate-key");
       showSecret("계정: " + t.team + "\n새 API 키: " + d.apiKey);
       openDetail(t, true);
     } catch (e) { msg("detail-msg", e.message); }
+    finally { btn.disabled = false; }
   };
 
   $("detail-audit").onclick = function () {

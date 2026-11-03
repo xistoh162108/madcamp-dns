@@ -682,7 +682,7 @@ curl -s -X DELETE \
 { "success": true, "cloudflareCleanup": { "ingressUpdated": true, "dnsRecordDeleted": true } }
 ```
 
-`cloudflareCleanup`은 참고용 정보입니다 — `false`가 보이더라도 호스트네임 자체는 이미 삭제된 상태이니 다시 삭제를 시도할 필요는 없습니다. 계속 `false`가 보이면 운영진에게 문의하세요.
+삭제는 Cloudflare 쪽(CNAME, 터널 설정)을 먼저 지운 뒤 DB에서 지웁니다. Cloudflare 단계가 실패하면 `502 CLOUDFLARE_ERROR`가 반환되고 호스트네임은 그대로 남으니, 잠시 뒤 같은 요청을 다시 보내면 됩니다. 성공 응답의 `cloudflareCleanup`은 항상 `true`이며, 예전 클라이언트와의 호환을 위해 남겨 둔 필드입니다.
 
 > **서브도메인 반납 시 주의**: 해당 서브도메인 아래 터널 호스트네임이 남아있으면 `DELETE /v1/subdomains/:id` 반납이 거부됩니다. DNS 레코드와 마찬가지로 먼저 지워야 합니다.
 
