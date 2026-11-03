@@ -750,7 +750,7 @@ cache-control: public, max-age=31536000, immutable</pre></div>
 server: cloudflare
 cf-cache-status: <span class="g">HIT</span>      <span class="m"># MISS면 처음 받은 것, 다시 요청하면 HIT</span></pre></div>
 <ul>
-  <li>HTML과 API 응답은 기본적으로 캐시하지 않습니다. 로그인 정보가 섞인 응답이 다른 사람에게 보일 걱정은 하지 않아도 됩니다.</li>
+  <li>Cloudflare는 기본적으로 이미지, JS, CSS처럼 정적 파일 확장자만 캐시하고 HTML과 API 응답은 캐시하지 않습니다. 다만 사람마다 다른 내용을 <code>.png</code>, <code>.js</code> 같은 확장자 주소로 내보낸다면(로그인한 사용자의 프로필 사진 등) 그 응답에는 <code>Cache-Control: private</code>를 붙여 다른 사람에게 캐시된 내용이 가지 않게 하세요.</li>
   <li>켠 뒤에 '리디렉션이 너무 많습니다' 오류나 525/526 오류가 나면 바로 proxy를 다시 끄고 <a href="#contact">운영진</a>에게 알려 주세요.</li>
   <li>proxy를 켜면 Dokploy의 Validate DNS는 Cloudflare IP를 보게 되어 실패로 표시될 수 있습니다. 사이트가 잘 열리면 무시해도 됩니다.</li>
   <li>터널 주소는 처음부터 Cloudflare를 거치므로 따로 켤 필요가 없습니다.</li>
