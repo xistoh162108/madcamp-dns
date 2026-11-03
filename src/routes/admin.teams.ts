@@ -36,7 +36,7 @@ function teamView(s: {
   isActive: boolean;
   passwordHash: string | null;
   createdAt: Date;
-  _count?: { records: number };
+  _count?: { records: number; tunnelHostnames?: number };
 }) {
   return {
     id: s.id,
@@ -46,7 +46,7 @@ function teamView(s: {
     email: s.email.endsWith(TEAM_EMAIL_SUFFIX) ? null : s.email,
     domain: `${s.subdomain}.${process.env.ROOT_DOMAIN}`,
     recordLimit: s.recordLimit,
-    recordCount: s._count?.records,
+    recordCount: (s._count?.records ?? 0) + (s._count?.tunnelHostnames ?? 0),
     isActive: s.isActive,
     hasPassword: s.passwordHash !== null,
     createdAt: s.createdAt,
@@ -64,7 +64,7 @@ async function findTeam(team: string) {
 app.get("/", async (c) => {
   const students = await prisma.student.findMany({
     orderBy: { subdomain: "asc" },
-    include: { _count: { select: { records: true } } },
+    include: { _count: { select: { records: true, tunnelHostnames: true } } },
   });
   return c.json({ teams: students.map(teamView) });
 });
@@ -184,7 +184,7 @@ app.patch("/:team", async (c) => {
   const updated = await prisma.student.update({
     where: { id: student.id },
     data: parsed.data,
-    include: { _count: { select: { records: true } } },
+    include: { _count: { select: { records: true, tunnelHostnames: true } } },
   });
 
   auditSafe({

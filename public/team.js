@@ -60,15 +60,17 @@
 
   async function load() {
     var seq = ++loadSeq;
-    var r;
-    try {
-      r = await Promise.all([api("GET", "/v1/me"), api("GET", "/v1/subdomains"), api("GET", "/v1/records")]);
-    } catch (e) { if (seq === loadSeq) msg("list-msg", e.message); return; }
+    // Each list renders on its own, so one failed request doesn't leave the
+    // others stale after a change.
+    var r = await Promise.allSettled([api("GET", "/v1/me"), api("GET", "/v1/subdomains"), api("GET", "/v1/records")]);
     if (seq !== loadSeq || !token) return;
-
-    me = r[0].student;
-    $("domain").textContent = me.subdomain;
-    renderSubdomains(r[1]);
+    var failed = r.filter(function (x) { return x.status === "rejected"; });
+    if (failed.length) msg("list-msg", failed[0].reason.message);
+    if (r[0].status === "fulfilled") { me = r[0].value.student; $("domain").textContent = me.subdomain; }
+    if (!me) return;
+    if (r[1].status === "fulfilled") renderSubdomains(r[1].value);
+    if (r[2].status !== "fulfilled") return;
+    r[2] = r[2].value;
     renderRecords(r[2].records);
 
     loadKeys(seq);

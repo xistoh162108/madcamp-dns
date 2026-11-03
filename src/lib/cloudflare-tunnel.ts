@@ -167,24 +167,53 @@ export async function withTunnelLock<T>(tunnelId: string, fn: () => Promise<T>):
   return current;
 }
 
-// Recompute a tunnel's full ingress list from its current DB rows (optionally
-// with one extra candidate not yet committed, for the create path) and PUT
-// it to Cloudflare — always under withTunnelLock. Shared by every call site
-// that needs to sync ingress state, so the lock can never accidentally be
-// forgotten at a new call site.
-export async function syncTunnelIngress(
-  prisma: {
-    tunnelHostname: {
-      findMany: (args: { where: { tunnelId: string } }) => Promise<Array<{ fqdn: string; localPort: number }>>;
-    };
-  },
+type HostnameReader = {
+  tunnelHostname: {
+    findMany: (args: { where: { tunnelId: string } }) => Promise<Array<{ id: string; fqdn: string; localPort: number }>>;
+  };
+};
+
+// Recompute a tunnel's full ingress list from its current DB rows and PUT it
+// to Cloudflare. NOT locked: callers hold withTunnelLock around this AND the
+// DB write that makes the change permanent, so a concurrent add/delete on the
+// same tunnel can't read the DB between our PUT and our commit and drop our
+// rule. `extra` is a hostname not yet committed (create path); `excludeId` is
+// one about to be deleted (delete path).
+export async function putIngressFromDb(
+  prisma: HostnameReader,
   tunnelId: string,
   cloudflareTunnelId: string,
-  extra?: { fqdn: string; localPort: number }
+  opts: { extra?: { fqdn: string; localPort: number }; excludeId?: string } = {}
 ): Promise<void> {
-  await withTunnelLock(tunnelId, async () => {
-    const existing = await prisma.tunnelHostname.findMany({ where: { tunnelId } });
-    const all = extra ? [...existing, extra] : existing;
-    await putIngressConfig(cloudflareTunnelId, all.map((h) => ({ hostname: h.fqdn, localPort: h.localPort })));
+  const existing = (await prisma.tunnelHostname.findMany({ where: { tunnelId } })).filter((h) => h.id !== opts.excludeId);
+  const all = opts.extra ? [...existing, opts.extra] : existing;
+  await putIngressConfig(cloudflareTunnelId, all.map((h) => ({ hostname: h.fqdn, localPort: h.localPort })));
+}
+
+// Locked convenience wrapper for a plain re-sync from the DB.
+export async function syncTunnelIngress(prisma: HostnameReader, tunnelId: string, cloudflareTunnelId: string): Promise<void> {
+  await withTunnelLock(tunnelId, () => putIngressFromDb(prisma, tunnelId, cloudflareTunnelId));
+}
+
+// Remove one tunnel hostname everywhere, Cloudflare first. Order matters:
+//   1. delete the CNAME (idempotent: "not found" counts as done),
+//   2. PUT the ingress list without this hostname,
+//   3. delete the DB row.
+// If 1 or 2 fails the row stays and the error reaches the caller, so the
+// hostname is still listed and a retry finishes the job. The DB never says a
+// name is free while Cloudflare still serves it.
+export async function deleteTunnelHostnameEverywhere(
+  prisma: HostnameReader & {
+    tunnel: { findUniqueOrThrow: (args: { where: { id: string } }) => Promise<{ id: string; cloudflareTunnelId: string }> };
+    tunnelHostname: { delete: (args: { where: { id: string } }) => Promise<unknown> };
+  },
+  hostname: { id: string; tunnelId: string; cloudflareRecordId: string },
+  deleteDnsRecord: (cloudflareRecordId: string) => Promise<void>
+): Promise<void> {
+  const tunnel = await prisma.tunnel.findUniqueOrThrow({ where: { id: hostname.tunnelId } });
+  await withTunnelLock(tunnel.id, async () => {
+    await deleteDnsRecord(hostname.cloudflareRecordId);
+    await putIngressFromDb(prisma, tunnel.id, tunnel.cloudflareTunnelId, { excludeId: hostname.id });
+    await prisma.tunnelHostname.delete({ where: { id: hostname.id } });
   });
 }

@@ -44,6 +44,8 @@
     <li><a href="#dok-compose">Docker Compose</a></li>
     <li><a href="#dok-db">데이터베이스</a></li>
     <li><a href="#cicd">자동 배포 (CI/CD)</a></li>
+    <li class="sub"><a href="#cicd-webhook">A. Webhook</a></li>
+    <li class="sub"><a href="#cicd-actions">B. GitHub Actions</a></li>
     <li><a href="#dok-after">배포한 뒤</a></li>
   </ol>
   <div class="group">더 알아두기</div>
@@ -257,7 +259,7 @@ EOF</span>
 <tr><td class="nw">값</td><td>A는 IPv4, AAAA는 IPv6, CNAME은 도메인 이름(IP 불가), TXT는 255자 이하</td></tr>
 <tr><td class="nw">TTL</td><td>화면에서는 <code>auto</code>(약 5분), 300, 3600 중에서 고릅니다. API로는 1(auto) 또는 60~86400초. 특별한 이유가 없으면 auto</td></tr>
 <tr><td class="nw">한도</td><td>레코드 + 터널 주소 합쳐서 팀당 10개(기본값). 더 필요하면 운영진에게 요청</td></tr>
-<tr><td class="nw">요청 속도</td><td>웹 화면 기준 1분에 전체 120회(그중 추가·수정·삭제는 30회). 넘으면 잠시 뒤 다시 시도하라는 오류가 납니다.</td></tr>
+<tr><td class="nw">요청 속도</td><td>웹 화면 기준 1분에 전체 300회(그중 추가·수정·삭제는 30회). 넘으면 잠시 뒤 다시 시도하라는 오류가 납니다.</td></tr>
 </table></div>
 
 <h2 id="dns-edit">DNS 서비스: 수정과 삭제</h2>
@@ -529,21 +531,24 @@ content-type: text/html; charset=utf-8
   <li>Autodeploy: push할 때마다 자동 배포 (<a href="#cicd">자동 배포 (CI/CD)</a> 참고)</li>
 </ol>
 <p>그다음 Domains 탭에서 Add Domain을 누르고, Service Name에서 주소를 받을 서비스를 고른 뒤 Host, Container Port, HTTPS를 위와 같이 채웁니다.</p>
-<div class="term"><div class="bar"><i></i><i></i><i></i><span>docker-compose.yml 예시</span></div><pre>services:
-  web:
+<div class="term"><div class="bar"><i></i><i></i><i></i><span>docker-compose.yml 예시 (team1 기준, 팀 ID만 바꿔 쓰세요)</span></div><pre>services:
+  team1-web:
     build: ./frontend
     expose:
       - "3000"          <span class="m"># ports: 가 아니라 expose:</span>
     environment:
       - NEXT_PUBLIC_API_URL=https://api.team1.gdgoc-devfest.org
-  api:
+    restart: unless-stopped
+  team1-api:
     build: ./backend
     expose:
       - "8080"
     environment:
-      - DATABASE_URL=postgresql://app:${DB_PASSWORD}@db:5432/app
-    depends_on: [db]
-  db:
+      - DATABASE_URL=postgresql://app:${DB_PASSWORD}@team1-db:5432/app
+      - CORS_ORIGIN=https://team1.gdgoc-devfest.org
+    depends_on: [team1-db]
+    restart: unless-stopped
+  team1-db:
     image: postgres:16-alpine
     environment:
       - POSTGRES_USER=app
@@ -551,12 +556,14 @@ content-type: text/html; charset=utf-8
       - POSTGRES_DB=app
     volumes:
       - dbdata:/var/lib/postgresql/data
+    restart: unless-stopped
 volumes:
   dbdata:</pre></div>
+<p>Domains 탭에서는 <code>team1-web</code>에 <code>team1.gdgoc-devfest.org</code>(포트 3000), <code>team1-api</code>에 <code>api.team1.gdgoc-devfest.org</code>(포트 8080)를 붙입니다. DB에는 도메인을 붙이지 않습니다. <code>DB_PASSWORD</code>는 Compose의 Environment 탭에 <code>DB_PASSWORD=긴랜덤값</code>으로 넣습니다.</p>
 <div class="callout danger"><span class="tag">Compose 규칙</span><div><ul>
   <li><code>ports:</code> 대신 <code>expose:</code>를 씁니다. <code>ports: - "3000:3000"</code>은 서버 포트를 직접 차지해서 다른 팀과 충돌합니다.</li>
   <li><code>privileged: true</code>, <code>network_mode: host</code>, <code>/var/run/docker.sock</code>이나 호스트 경로(<code>/</code>, <code>/root</code> 등) 마운트는 쓰지 않습니다. 발견되면 운영진이 서비스를 내립니다.</li>
-  <li>서비스끼리는 서비스 이름으로 접속합니다 (예: 백엔드에서 <code>db:5432</code>). 도메인을 붙인 서비스는 다른 팀과 같은 공용 네트워크에도 연결되므로, <code>web</code>, <code>api</code>, <code>db</code> 같은 흔한 이름은 다른 팀 컨테이너와 헷갈릴 수 있습니다. <code>team1-web</code>, <code>team1-api</code>, <code>team1-db</code>처럼 팀 ID를 앞에 붙여 주세요. 위 예시도 실제로 쓸 때는 이렇게 바꾸는 것을 권장합니다.</li>
+  <li>서비스끼리는 서비스 이름으로 접속합니다 (예: 백엔드에서 <code>team1-db:5432</code>). 도메인을 붙인 서비스는 다른 팀과 같은 공용 네트워크에도 연결되므로, <code>web</code>, <code>api</code>, <code>db</code> 같은 흔한 이름은 다른 팀 컨테이너와 헷갈릴 수 있습니다. 위 예시처럼 <code>team1-web</code>, <code>team1-api</code>, <code>team1-db</code>로 팀 ID를 앞에 붙여 주세요.</li>
   <li>남길 데이터는 이름 있는 볼륨(named volume)에 둡니다.</li>
   <li><code>${DB_PASSWORD}</code> 같은 값은 Compose의 Environment 탭에 넣습니다.</li>
 </ul></div></div>
@@ -566,24 +573,30 @@ volumes:
 <p>프로젝트 안에서 Create Service → Database로 PostgreSQL, MySQL, MongoDB, Redis 등을 만들 수 있습니다. 만든 DB 화면에 나오는 내부 접속 주소(Internal connection URL)를 백엔드 환경 변수(예: <code>DATABASE_URL</code>)에 넣습니다. DB에는 도메인을 붙이지 않고, External Port도 열지 않습니다.</p>
 
 <h2 id="cicd">자동 배포 (CI/CD)</h2>
-<p>GitHub에 push할 때마다 Dokploy가 알아서 다시 배포하게 만들 수 있습니다. 두 가지 중 하나를 고르세요. 처음이라면 A가 가장 간단합니다.</p>
+<p>GitHub에 push하면 Dokploy가 알아서 다시 빌드하고 배포하게 만들 수 있습니다. 방법은 두 가지이고, 하나만 고르세요. 둘을 같이 켜면 push 한 번에 두 번 배포됩니다.</p>
+<div class="tablewrap"><table>
+<tr><th></th><th>A. Webhook</th><th>B. GitHub Actions</th></tr>
+<tr><td>흐름</td><td>push → 바로 배포</td><td>push → 테스트·빌드 검사 → 통과하면 배포</td></tr>
+<tr><td>설정 시간</td><td>2분</td><td>5분</td></tr>
+<tr><td>추천</td><td>처음이거나 테스트가 없는 팀</td><td>테스트가 있고, 깨진 코드가 배포되는 걸 막고 싶은 팀</td></tr>
+</table></div>
 
-<h3>A. GitHub Webhook (push하면 바로 배포)</h3>
+<h3 id="cicd-webhook">A. Webhook: push하면 바로 배포</h3>
 <ol class="steps">
   <li>Dokploy 앱(또는 Compose)의 General 탭 Deploy Settings 카드에서 Autodeploy를 켭니다.</li>
   <li>Deployments 탭의 Webhook URL 옆 복사 버튼을 누릅니다.</li>
-  <li>GitHub 저장소 → Settings → Webhooks → Add webhook에 붙여 넣습니다. Content type은 <code>application/json</code>, 이벤트는 Just the push event로 둡니다.</li>
-  <li>저장한 뒤 아무 커밋이나 push하고 Dokploy Deployments 탭에 새 항목이 생기는지 봅니다. GitHub Webhooks 화면의 Recent Deliveries에 초록 체크가 보이면 연결된 것입니다.</li>
+  <li>GitHub 저장소 → Settings → Webhooks → Add webhook에 붙여 넣습니다. Content type은 <code>application/json</code>, 이벤트는 Just the push event로 두고 Add webhook을 누릅니다.</li>
+  <li>아무 커밋이나 push합니다. GitHub Webhooks 화면의 Recent Deliveries에 초록 체크가 보이고, Dokploy Deployments 탭에 새 항목이 생기면 성공입니다.</li>
 </ol>
 <p>Dokploy에 설정한 Branch로 push했을 때만 배포됩니다. 다른 브랜치 push는 무시되는 것이 정상입니다.</p>
 
-<h3>B. GitHub Actions (테스트 통과 후 배포)</h3>
-<p>테스트나 빌드 검사를 통과했을 때만 배포하고 싶다면 GitHub Actions에서 Dokploy API를 부릅니다.</p>
+<h3 id="cicd-actions">B. GitHub Actions: 테스트 통과 후 배포</h3>
 <ol class="steps">
-  <li>Dokploy 오른쪽 위 프로필 → API/CLI(Profile 설정)에서 API 키를 만듭니다.</li>
-  <li>앱 ID를 확인합니다. 앱 화면 주소창의 맨 끝 값이 앱 ID입니다 (<code>…/application/&lt;앱 ID&gt;</code>, Compose는 <code>…/compose/&lt;ID&gt;</code>).</li>
-  <li>GitHub 저장소 → Settings → Secrets and variables → Actions에 <code>DOKPLOY_API_KEY</code>와 <code>DOKPLOY_APP_ID</code>를 넣습니다.</li>
-  <li>저장소에 아래 파일을 추가하고 push합니다. 이 방식을 쓸 때는 A의 Autodeploy와 Webhook은 꺼 두세요. 둘 다 켜면 두 번 배포됩니다.</li>
+  <li>Dokploy 왼쪽 메뉴 Profile → API/CLI Keys → Generate New Key로 API 키를 만들고 복사합니다.</li>
+  <li>앱 ID를 확인합니다. 앱 화면을 열었을 때 주소창 맨 끝 값입니다.<br><code>…/services/application/<b>여기가 앱 ID</b></code> (Compose는 <code>…/services/compose/<b>ID</b></code>)</li>
+  <li>GitHub 저장소 → Settings → Secrets and variables → Actions → New repository secret으로 두 개를 넣습니다. <code>DOKPLOY_API_KEY</code>에는 1번 키, <code>DOKPLOY_APP_ID</code>에는 2번 ID를 넣습니다.</li>
+  <li>저장소에 아래 파일을 그대로 추가하고 push합니다. Node 프로젝트 기준이니, 다른 언어라면 <code>run:</code> 세 줄만 우리 프로젝트의 설치·테스트·빌드 명령으로 바꿉니다.</li>
+  <li>GitHub 저장소의 Actions 탭에서 초록 체크를 확인하고, Dokploy Deployments 탭에 새 배포가 생겼는지 봅니다.</li>
 </ol>
 <div class="term"><div class="bar"><i></i><i></i><i></i><span>.github/workflows/deploy.yml</span></div><pre>name: deploy
 on:
@@ -606,7 +619,14 @@ jobs:
             -H "x-api-key: ${{ secrets.DOKPLOY_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{"applicationId":"${{ secrets.DOKPLOY_APP_ID }}"}'</pre></div>
-<p>Compose라면 주소를 <code>/api/compose.deploy</code>로, 본문을 <code>{"composeId":"…"}</code>로 바꿉니다. API 키는 우리 팀 계정 권한 그대로 동작하므로 저장소 Secrets 말고 다른 곳에 적지 마세요.</p>
+<ul>
+  <li>Compose라면 마지막 줄의 주소를 <code>/api/compose.deploy</code>로, 본문을 <code>{"composeId":"${{ secrets.DOKPLOY_APP_ID }}"}</code>로 바꿉니다.</li>
+  <li>프론트와 백엔드처럼 앱이 둘이면 Secret을 <code>DOKPLOY_WEB_ID</code>, <code>DOKPLOY_API_ID</code>처럼 두 개 만들고 Deploy 단계를 두 번 적습니다.</li>
+  <li>B를 쓸 때는 A의 Autodeploy와 Webhook을 꺼 두세요.</li>
+  <li>테스트나 빌드가 실패하면 Deploy 단계까지 가지 않으므로, 서버에는 마지막으로 성공한 버전이 그대로 남습니다.</li>
+  <li>Actions 로그에 <code>401</code>이 보이면 API 키가 틀린 것이고, <code>400</code>이나 <code>404</code>가 보이면 앱 ID가 틀린 것입니다.</li>
+</ul>
+<div class="callout warn"><span class="tag">키 보관</span><div><p>API 키는 우리 팀 계정과 같은 권한을 가집니다. GitHub Secrets에만 넣고 코드나 단톡방에 적지 마세요. 새어 나갔다면 Profile → API/CLI Keys에서 지우고 새로 만드세요.</p></div></div>
 
 <h2 id="dok-after">배포한 뒤: 수정, 재배포, 로그</h2>
 <div class="tablewrap"><table>
@@ -968,6 +988,7 @@ cf-cache-status: <span class="g">HIT</span>      <span class="m"># MISS면 처�
 <tr><td>DNS 화면 <code>is reserved</code> 또는 <code>is not allowed</code></td><td>예약되거나 막힌 이름 (<a href="#dns-rules">규칙</a>)</td><td>다른 이름 사용</td></tr>
 <tr><td>DNS 화면 <code>cannot coexist</code>, 또는 CNAME 옆에 TXT를 만들 때 Cloudflare 오류</td><td>CNAME이 있는 이름에 다른 레코드를 만들려 함</td><td>기존 레코드를 지우고 새로 만들거나, 다른 이름 사용</td></tr>
 <tr><td>DNS 화면 <code>limit</code> 관련 오류</td><td>레코드 + 터널 주소가 한도에 닿음</td><td>안 쓰는 것을 지우거나 운영진에게 한도 요청</td></tr>
+<tr><td>삭제·수정했는데 <code>Cloudflare</code> 관련 오류가 남</td><td>Cloudflare 쪽 일시 오류</td><td>아무것도 바뀌지 않은 상태이니 잠시 뒤 다시 누르기. 계속되면 박지민 문의</td></tr>
 <tr><td>DNS 화면 <code>Too many requests</code></td><td>짧은 시간에 너무 많이 누름</td><td>1분 뒤 다시 시도</td></tr>
 <tr><td>로그인이 안 됨, <code>Too many requests</code></td><td>비밀번호 오류 또는 10번 틀려서 잠김</td><td>최대 15분 뒤 다시 시도, 계속되면 운영진에게 재설정 요청</td></tr>
 </table></div>

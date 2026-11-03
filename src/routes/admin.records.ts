@@ -61,17 +61,11 @@ app.delete("/:id", async (c) => {
   });
   if (!record) throw notFound("DNS record");
 
-  // DB is authoritative for "is this record gone" — delete it first, then
-  // best-effort clean up Cloudflare (mirrors the student-facing DELETE
-  // endpoint in student.records.ts; see that file for the full rationale).
+  // Cloudflare first, then the DB (same order and reasoning as the student
+  // DELETE in student.records.ts). A Cloudflare failure surfaces as an error
+  // and the record stays, so the admin can retry.
+  await deleteDnsRecord(record.cloudflareRecordId);
   await prisma.dnsRecord.delete({ where: { id: record.id } });
-
-  await deleteDnsRecord(record.cloudflareRecordId).catch((cfErr) => {
-    console.error(
-      "[delete-orphan] DB record deleted but Cloudflare cleanup failed — needs manual cleanup:",
-      { recordId: record.id, cloudflareRecordId: record.cloudflareRecordId, cfErr }
-    );
-  });
 
   auditSafe({
     actorType: "ADMIN",
