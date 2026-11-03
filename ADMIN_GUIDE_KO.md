@@ -802,16 +802,41 @@ curl -s -X DELETE $BASE/admin/teams/alice/password -H "Authorization: Bearer $AD
 
 ## Dokploy 팀 계정 만들기 (운영진)
 
-참가자 가이드(`/guide`)는 "Dokploy 계정은 운영진이 DNS 계정처럼 만들어서 준다"는 전제로 쓰여 있습니다. 팀 10개 기준으로 한 번만 하면 됩니다. 메뉴 이름은 Dokploy 버전에 따라 조금 다를 수 있습니다.
+참가자 가이드(`/guide`)는 "Dokploy 계정은 운영진이 DNS 계정처럼 만들어서 준다"는 전제로 쓰여 있습니다. Dokploy v0.30.10 기준이며, `team1`~`team10`은 이 방식으로 이미 만들어져 있습니다(2026-11-03). 이메일과 비밀번호는 DNS 웹 계정과 같습니다.
 
-1. 프로젝트 만들기: 관리자 계정으로 Projects → Create Project를 눌러 `team1`~`team10`을 만듭니다.
-2. 초대 링크 만들기: Settings → Users → Add Invitation에서 이메일 `teamN@gdgoc-kaist.org`, 역할 Member로 만듭니다. 메일 발송 설정이 없어도 화면에 나오는 초대 링크를 복사하면 됩니다.
-3. 가입: 브라우저 시크릿 창에서 초대 링크를 열고, DNS 비밀번호와 다른 랜덤 비밀번호(12자 이상)로 가입합니다. 이메일과 비밀번호를 DNS 계정과 함께 팀에 전달합니다.
-4. 권한 정리: Settings → Users에서 그 사용자의 권한(Edit Permissions)을 엽니다.
-   - 켤 것: 해당 `teamN` 프로젝트 접근, 서비스 생성·삭제, API/CLI 접근(가이드의 GitHub Actions 배포에 필요)
-   - 끌 것: 프로젝트 생성, 다른 팀 프로젝트, Traefik 파일, Docker, SSH 키, Git provider, 서버 설정
-5. 확인: 시크릿 창에서 그 계정으로 로그인해 자기 팀 프로젝트만 보이는지 봅니다.
+### 현재 설정
 
-비밀번호를 잊은 팀은 관리자 계정에서 그 사용자를 지우고 2~4번을 다시 하면 됩니다. 프로젝트와 그 안의 서비스는 사용자를 지워도 남습니다.
+| 항목 | 값 |
+|---|---|
+| 프로젝트 | `team1`~`team10` (각각 `production` 환경 하나), 기존 `Sample Project`는 운영진 전용 |
+| 계정 | `teamN@gdgoc-kaist.org`, 역할 Member, 비밀번호는 DNS 웹 비밀번호와 동일 |
+| 접근 범위 | 자기 `teamN` 프로젝트와 그 `production` 환경만 |
+| 켠 권한 | Create Services, Delete Services, Create Environments, Delete Environments, Access to API/CLI |
+| 끈 권한 | Create Projects, Delete Projects, Access to Traefik Files, Access to Docker, Access to SSH Keys, Access to Git Providers |
+| 동시 빌드 | 2 (Settings → Deployments → Concurrent Builds) |
+| Daily Docker Cleanup | 켜짐 (Settings → Web Server) |
 
-비공개 저장소와 자동 배포는 가이드에서 팀이 직접 하도록 안내합니다(읽기 전용 GitHub 토큰, GitHub Webhook 또는 GitHub Actions + Dokploy API 키). 운영진이 GitHub App을 연결할 필요는 없습니다.
+권한을 이렇게 둔 이유:
+- Docker 탭은 서버의 모든 컨테이너(다른 팀 포함)를 보여 주고 조작할 수 있어서 끕니다.
+- Traefik 파일은 모든 팀의 라우팅 설정이라 끕니다.
+- SSH 키와 Git provider는 조직 전체가 공유하는 설정이라, 한 팀이 연결한 GitHub 계정이나 키를 다른 팀이 쓸 수 있게 됩니다. 그래서 끄고, 비공개 저장소는 팀이 읽기 전용 GitHub 토큰을 Git 탭 URL에 넣도록 안내합니다(가이드 "비공개 저장소 연결"). 따라서 팀 계정에서는 Provider의 Github 탭이 아니라 Git 탭을 씁니다.
+- API/CLI는 가이드의 GitHub Actions 자동 배포(`/api/application.deploy`)에 필요해서 켭니다. Member의 API 키는 그 계정이 가진 권한까지만 동작합니다.
+- 환경 생성·삭제는 팀이 자기 프로젝트 안에 `staging` 같은 환경을 만들 수 있게 켭니다. 새 환경이 자동으로 접근 목록에 들어가지 않으면 Add Permissions에서 그 환경을 체크해 주세요.
+- 동시 빌드 2는 마감 직전 여러 팀이 몰릴 때 대기를 줄이려는 값입니다. 빌드가 메모리 부족으로 실패하기 시작하면 1로 내립니다.
+- Custom Roles, Git Provider/Server Assignment는 Enterprise 라이선스 기능이라 쓰지 않습니다.
+
+### 팀 추가하기 (예: team11)
+
+1. Projects → Create Project로 `team11`을 만듭니다.
+2. Settings → Users → Add Invitation → Invite Method를 Initial Credentials로 바꿉니다. Email `team11@gdgoc-kaist.org`, Role Member, Password에 DNS 웹 비밀번호를 넣고 Create를 누릅니다. 초대 링크나 메일 없이 바로 로그인할 수 있는 계정이 생깁니다.
+3. Users 목록에서 그 계정의 ⋯ → Add Permissions를 엽니다. 위 표대로 스위치를 맞추고, Projects 목록에서 `team11` 프로젝트와 그 아래 `production` 환경을 둘 다 체크한 뒤 Update를 누릅니다. 환경 체크를 빠뜨리면 팀이 서비스를 만들 수 없습니다.
+4. 시크릿 창에서 그 계정으로 로그인해 자기 프로젝트만 보이고 Create Project 버튼이 없는지 확인합니다.
+
+### 비밀번호를 잊었을 때
+
+관리자가 다른 사용자의 비밀번호를 바꾸는 메뉴는 없습니다. Users에서 그 계정을 ⋯ → Delete User로 지우고 위 2~3번을 다시 합니다. 프로젝트와 그 안의 서비스는 계정을 지워도 남습니다.
+
+### 참고
+
+- 팀 계정 비밀번호를 DNS 웹 비밀번호와 같게 두었으므로, 한쪽이 유출되면 다른 쪽도 같이 바꿔야 합니다.
+- 비공개 저장소와 자동 배포는 팀이 직접 합니다(읽기 전용 GitHub 토큰, GitHub Webhook 또는 GitHub Actions + Dokploy API 키). 운영진이 GitHub App을 연결할 필요는 없습니다.
