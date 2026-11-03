@@ -82,6 +82,25 @@
   </div>
   <p id="tunnel-msg"></p>
 
+  <h2>API 키</h2>
+  <p class="small">스크립트나 curl로 DNS를 바꿀 때 쓰는 키입니다. 웹 화면만 쓴다면 필요 없습니다.</p>
+  <div class="tw"><table>
+    <thead><tr><th>키</th><th>라벨</th><th>상태</th><th>마지막 사용</th><th>발급</th></tr></thead>
+    <tbody id="keys"></tbody>
+  </table></div>
+  <p><button type="button" id="key-reissue">새 키 발급 (기존 키 모두 폐기)</button></p>
+  <div id="newkey-box" class="hidden">
+    <p class="err">이 키는 지금 한 번만 볼 수 있습니다. 복사해서 안전한 곳에 저장하세요. 새로고침하거나 창을 닫으면 다시 볼 수 없습니다.</p>
+    <p><code id="newkey-text"></code></p>
+    <p>
+      <button type="button" id="newkey-toggle">보기</button>
+      <button type="button" id="newkey-copy">복사</button>
+      <button type="button" id="newkey-close">저장했음, 닫기</button>
+      <span class="small" id="newkey-msg"></span>
+    </p>
+  </div>
+  <p id="key-msg"></p>
+
   <h2>비밀번호 변경</h2>
   <form id="pw-form">
     현재 <input name="currentPassword" type="password" autocomplete="current-password" maxlength="256" required>
